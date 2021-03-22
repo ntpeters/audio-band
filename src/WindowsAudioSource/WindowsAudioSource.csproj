@@ -44,6 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="WindowsAudioSessionManager.cs" />
     <Compile Include="WindowsAudioSource.cs" />
     <Compile Include="ConversionExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
