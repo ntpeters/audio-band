@@ -7,8 +7,8 @@
     <ProjectGuid>{398A9CA6-6A19-4B97-9D40-EDF6C3F0C7A1}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>NowPlayingAudioSource</RootNamespace>
-    <AssemblyName>NowPlayingAudioSource</AssemblyName>
+    <RootNamespace>WindowsAudioSource</RootNamespace>
+    <AssemblyName>WindowsAudioSource</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
@@ -44,7 +44,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="AudioSource.cs" />
+    <Compile Include="WindowsAudioSource.cs" />
     <Compile Include="ConversionExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -67,9 +67,9 @@
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PostBuildEvent>if NOT "$(Configuration)" == "Release" (
-  (robocopy "$(TargetDir)\" "$(SolutionDir)AudioBand\$(OutDir)AudioSources\NowPlaying\\" /xf AudioBand.AudioSource.*)  ^&amp; IF %25ERRORLEVEL%25 LEQ 1 exit 0
+  (robocopy "$(TargetDir)\" "$(SolutionDir)AudioBand\$(OutDir)AudioSources\Windows\\" /xf AudioBand.AudioSource.*)  ^&amp; IF %25ERRORLEVEL%25 LEQ 1 exit 0
 ) ELSE (
-  (robocopy "$(TargetDir)\" "$(TargetDir)NowPlaying\\" /xf AudioBand.AudioSource.*) ^&amp; IF %25ERRORLEVEL%25 LEQ 1 exit 0
+  (robocopy "$(TargetDir)\" "$(TargetDir)Windows\\" /xf AudioBand.AudioSource.*) ^&amp; IF %25ERRORLEVEL%25 LEQ 1 exit 0
 )</PostBuildEvent>
   </PropertyGroup>
 </Project>

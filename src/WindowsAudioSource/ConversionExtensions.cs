@@ -9,7 +9,7 @@ using Windows.Media;
 using Windows.Media.Control;
 using Windows.Storage.Streams;
 
-namespace NowPlayingAudioSource
+namespace WindowsAudioSource
 {
     public static class ConversionExtensions
     {

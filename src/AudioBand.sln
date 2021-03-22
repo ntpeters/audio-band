@@ -27,9 +27,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Audio Sources", "Audio Sour
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{E79F26F3-C51F-4375-BF1C-4090FAB8D16D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NowPlayingAudioSource", "NowPlayingAudioSource\NowPlayingAudioSource.csproj", "{398A9CA6-6A19-4B97-9D40-EDF6C3F0C7A1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsAudioSource", "WindowsAudioSource\WindowsAudioSource.csproj", "{398A9CA6-6A19-4B97-9D40-EDF6C3F0C7A1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NowPlayingAudioSource.Test", "NowPlayingAudioSource.Test\NowPlayingAudioSource.Test.csproj", "{1261C92A-5979-410E-B757-5E65CD69300A}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsAudioSource.Test", "WindowsAudioSource.Test\WindowsAudioSource.Test.csproj", "{1261C92A-5979-410E-B757-5E65CD69300A}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

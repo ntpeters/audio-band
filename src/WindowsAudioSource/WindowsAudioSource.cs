@@ -8,9 +8,9 @@ using Windows.Foundation;
 using Windows.Media;
 using Windows.Media.Control;
 
-namespace NowPlayingAudioSource
+namespace WindowsAudioSource
 {
-    public class AudioSource : IAudioSource
+    public class WindowsAudioSource : IAudioSource
     {
         private static readonly GlobalSystemMediaTransportControlsSessionPlaybackStatus[] SupportedPlaybackStatusesInPriorityOrder =
             new GlobalSystemMediaTransportControlsSessionPlaybackStatus[]
@@ -75,7 +75,7 @@ namespace NowPlayingAudioSource
             "May not match the current session Windows is controlling.")]
         public bool SmartSessionSwitchingEnabled { get; set; }
 
-        public string Name => "Now Playing";
+        public string Name => "Windows";
 
         public IAudioSourceLogger Logger { get; set; }
 
