@@ -28,6 +28,52 @@ namespace NowPlayingAudioSource
                 MediaPlaybackType.Music
             };
 
+        // TODO: Add setting to attempt choosing the "best" session, and default to the current session always
+        // TODO: Add setting to auto pause previous session when sessions switch
+        // TODO: Add setting for disallowed apps
+        // TODO: Add setting for locking to a specified app
+        // TODO: Add setting for *temporarily* locking to the current session (useful for browsers)
+        // TODO: Write seen AppUserModelIds to a rotating temp file, and add readonly setting showing its path
+        // TODO: Add readonly setting showing the current session AppUserModelId
+        // TODO: Switch this to a couple of flags for music, video, and unknown sources
+        [AudioSourceSetting("Current Session Source",
+            Description = "The AppUserModelId of the session currently being controlled.",
+            Options = SettingOptions.ReadOnly)]
+        public string CurrentSessionSource
+        {
+            get => _currentSourceAppUserModlelId;
+
+            set
+            {
+                if (value == _currentSourceAppUserModlelId)
+                {
+                    return;
+                }
+
+                _currentSourceAppUserModlelId = value;
+                SettingChanged?.Invoke(this, new SettingChangedEventArgs("Current Session Source"));
+            }
+        }
+
+        [AudioSourceSetting("Session Source Disallow List",
+            Description = "Comma separated list of AppUserModelIds to block from being controlled.")]
+        public string SessionSourceDisallowList
+        {
+            get => string.Join(",", _disallowedAppUserModelIds);
+
+            set
+            {
+                Logger.Debug($"SessionSourceDisallowList Changed: {value}");
+                _disallowedAppUserModelIds = value.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                UpdateSession(_sessionManager, null);
+            }
+        }
+
+        // NOTE: ReadOnly only seems to work for strings?
+        [AudioSourceSetting("Smart Session Switching",
+            Description = "[EXPERIMENTAL] When enabled, the controlled session will be selected based on media type and play state.\n" +
+            "May not match the current session Windows is controlling.")]
+        public bool SmartSessionSwitchingEnabled { get; set; }
 
         public string Name => "Now Playing";
 
@@ -51,6 +97,10 @@ namespace NowPlayingAudioSource
         private string _currentArtist;
         private string _currentAlbum;
 
+        // For settings
+        private string _currentSourceAppUserModlelId = string.Empty;
+        private IList<string> _disallowedAppUserModelIds = new List<string>();
+
         public async Task ActivateAsync()
         {
             var sessionManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
@@ -72,8 +122,10 @@ namespace NowPlayingAudioSource
 
         public Task PreviousTrackAsync() => LogPlayerCommandIfFailed(() => _currentSession?.TrySkipPreviousAsync());
 
+        // This needs to be in ticks, per discussion here:
+        // https://github.com/MicrosoftDocs/winrt-api/issues/1725
         public Task SetPlaybackProgressAsync(TimeSpan newProgress) =>
-            LogPlayerCommandIfFailed(() => _currentSession?.TryChangePlaybackPositionAsync((long)newProgress.TotalMilliseconds));
+            LogPlayerCommandIfFailed(() => _currentSession?.TryChangePlaybackPositionAsync(newProgress.Ticks));
 
         public Task SetRepeatModeAsync(RepeatMode newRepeatMode) =>
             LogPlayerCommandIfFailed(() => _currentSession?.TryChangeAutoRepeatModeAsync(newRepeatMode.ToMediaPlaybackAutoRepeatMode()));
@@ -145,6 +197,10 @@ namespace NowPlayingAudioSource
 
             try
             {
+                // TODO: Only set track progress if the current session *actually* supports setting it
+                // Some apps (I'm looking at you Groove Music) that don't support changing the playback postition 
+                // still fire a timeline properties changed event containing the initial timeline state when the
+                // session is first initiated.
                 var timelineProperties = sender.GetTimelineProperties();
                 if (timelineProperties.Position != _trackProgress)
                 {
@@ -175,7 +231,7 @@ namespace NowPlayingAudioSource
             try
             {
                 var mediaProperties = sender.TryGetMediaPropertiesAsync().AsTask().GetAwaiter().GetResult();
-                // TODO: Restore this
+                // TODO: Restore this - Or, do we even care?
                 //if (_currentTrackName == mediaProperties.Title && _currentArtist == mediaProperties.Artist && _currentAlbum == mediaProperties.AlbumTitle)
                 //{
                 //    Logger.Debug("Ignoring track info changed event: New info is the same as the current info");
@@ -183,7 +239,7 @@ namespace NowPlayingAudioSource
                 //}
 
                 // Convert media properties to event args to update track info.
-                // TODO: Only try to update the image if we don't already have album art and the album hasn't changed
+                // TODO: Only try to update the image if we don't already have album art and the album hasn't changed - Or, do we even care?
                 var trackInfoChangedArgs = mediaProperties.ToTrackInfoChangedEventArgsAsync(includeAlbumArt: true, Logger).GetAwaiter().GetResult();
                 trackInfoChangedArgs.TrackLength = sender.GetTimelineProperties().EndTime.Duration();
                 _currentTrackName = trackInfoChangedArgs.TrackName;
@@ -204,7 +260,7 @@ namespace NowPlayingAudioSource
             _currentArtist = null;
             _currentAlbum = null;
             var emptyTrackInfoChangedArgs = new TrackInfoChangedEventArgs();
-            emptyTrackInfoChangedArgs.AlbumArt = null;
+            emptyTrackInfoChangedArgs.AlbumArt = null;  // Must be null to ensure we reset to the placeholder art
             TrackInfoChanged.Invoke(this, emptyTrackInfoChangedArgs);
         }
 
@@ -274,7 +330,12 @@ namespace NowPlayingAudioSource
             var newSession = GetNextBestSession(currentSessions);                
             if (newSession == null)
             {
-                Logger.Debug("No better session found, resetting media info and playback state");
+                Logger.Debug("No valid session found, resetting media info and playback state");
+            }
+            else if (newSession == _currentSession)
+            {
+                Logger.Debug("No better session found, keeping current session");
+                return;
             }
             else
             {
@@ -313,6 +374,12 @@ namespace NowPlayingAudioSource
                 return true;
             }
 
+            if (_disallowedAppUserModelIds.Contains(_currentSession.SourceAppUserModelId))
+            {
+                reason = $"Session source has been disallowed by the user - SourceAppUserModelId='{_currentSession.SourceAppUserModelId}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'";
+                return true;
+            }
+
             if (!sessions.Contains(_currentSession))
             {
                 reason = "Current session no longer exists";
@@ -327,8 +394,11 @@ namespace NowPlayingAudioSource
         {
             try
             {
-                // We only care about music sessions
-                var musicSessions = sessions.Where(session => SupportedPlaybackTypes.Contains(session.GetPlaybackInfo().PlaybackType));
+                // We only care about music sessions for sources that have not been disallowed by the user
+                var musicSessions = sessions.Where(session =>
+                SupportedPlaybackTypes.Contains(session.GetPlaybackInfo().PlaybackType) &&
+                !_disallowedAppUserModelIds.Contains(session.SourceAppUserModelId));
+
                 if (musicSessions.Count() == 1)
                 {
                     return musicSessions.First();
@@ -373,10 +443,19 @@ namespace NowPlayingAudioSource
 
             // Only accept music sessions
             // TODO: Add option to exclude certain apps?
+            // TODO: Add option to lock to a specific app?
             var newSessionPlaybackType = newCurrentSession?.GetPlaybackInfo()?.PlaybackType;
             if (newSessionPlaybackType != null && !SupportedPlaybackTypes.Contains(newSessionPlaybackType))
             {
                 Logger.Debug($"Ignoring current session changed event: New session is not of a supported playback type. PlaybackType='{newSessionPlaybackType}'; SupportedPlaybackTypes='{String.Join(",", SupportedPlaybackTypes)}'");
+                return;
+            }
+
+            // Check whether the new session source has been disallowed by the user
+            var newSessionSourceAppUserModelId = newCurrentSession?.SourceAppUserModelId;
+            if (newSessionSourceAppUserModelId != null && _disallowedAppUserModelIds.Contains(newSessionSourceAppUserModelId))
+            {
+                Logger.Debug($"Ignoring current session changed event: New session source is disallowed. SourceAppUserModelId='{newSessionSourceAppUserModelId}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'");
                 return;
             }
 
@@ -390,6 +469,7 @@ namespace NowPlayingAudioSource
 
             // Swap the sessions
             _currentSession = newCurrentSession;
+            CurrentSessionSource = _currentSession?.SourceAppUserModelId ?? string.Empty;
 
             // Setup the new session
             if (_currentSession != null)
@@ -403,6 +483,8 @@ namespace NowPlayingAudioSource
                 UpdatePlaybackInfo(_currentSession, null);
                 UpdateTrackProgress(_currentSession, null);
                 UpdateTrackInfo(_currentSession, null);
+
+                LogSessionCapabilities(_currentSession);
             }
             else
             {
@@ -430,12 +512,34 @@ namespace NowPlayingAudioSource
             // Register event handlers on the new current session
             if (_sessionManager != null)
             {
+                // TODO: Add setting to choose between the just system's current session or letting us try to make a better guess
                 _sessionManager.CurrentSessionChanged += UpdateCurrentSession;
-                _sessionManager.SessionsChanged += UpdateSession;
-            }
+                //_sessionManager.SessionsChanged += UpdateSession;
 
-            // Look for the new best session from the new session manager, and update everything with it
-            UpdateSession(_sessionManager, null);
+                // Look for the new best session from the new session manager, and update everything with it
+                //UpdateSession(_sessionManager, null);
+                SetCurrentSession(_sessionManager.GetCurrentSession());
+            }
+            else
+            {
+                SetCurrentSession(null);
+            }
+        }
+
+        private void LogSessionCapabilities(GlobalSystemMediaTransportControlsSession session)
+        {
+            // These capabilities can change based on the current session state.
+            // For example, when media is already playing "IsPlayEnabled" is false and "IsPauseEnabled" is true, and the opposite is the case when media is paused.
+            // Likewise, when there is no next track queued "IsNextEnabled" may be false.
+            var sessionControls = session.GetPlaybackInfo().Controls;
+            Logger.Debug($"New session for: '{session.SourceAppUserModelId}'. Capabilities: " +
+                $"Play={sessionControls.IsPlayEnabled}; " +
+                $"Pause={sessionControls.IsPauseEnabled}; " +
+                $"Next={sessionControls.IsNextEnabled}; " +
+                $"Previous={sessionControls.IsPreviousEnabled}; " +
+                $"Repeat={sessionControls.IsRepeatEnabled}; " +
+                $"Shuffle={sessionControls.IsShuffleEnabled}; " +
+                $"PlaybackPosition={sessionControls.IsPlaybackPositionEnabled}; ");
         }
 
         private async Task LogPlayerCommandIfFailed(Func<IAsyncOperation<bool>> command, [CallerMemberName] string caller = null)

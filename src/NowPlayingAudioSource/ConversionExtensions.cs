@@ -39,6 +39,7 @@ namespace NowPlayingAudioSource
         public static async Task<TrackInfoChangedEventArgs> ToTrackInfoChangedEventArgsAsync(this GlobalSystemMediaTransportControlsSessionMediaProperties mediaProperties, bool includeAlbumArt = true, IAudioSourceLogger logger = null)
         {
             // Only attempt converting album art if it was requested
+            // TODO: Album art sometimes changes even when we choose not to update the track info. Is this being treated as a reference? Do we need to hold a copy?
             Image albumArt = null;
             if (includeAlbumArt)
             {
