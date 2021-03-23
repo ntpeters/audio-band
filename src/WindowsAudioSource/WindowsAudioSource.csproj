@@ -44,6 +44,18 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionWrapper.cs" />
+    <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper.cs" />
+    <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper.cs" />
+    <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper.cs" />
+    <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper.cs" />
+    <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper.cs" />
+    <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper.cs" />
+    <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper.cs" />
+    <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper.cs" />
+    <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionWrapper.cs" />
+    <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionManagerWrapper.cs" />
+    <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionManagerWrapper.cs" />
     <Compile Include="WindowsAudioSessionManager.cs" />
     <Compile Include="WindowsAudioSource.cs" />
     <Compile Include="ConversionExtensions.cs" />

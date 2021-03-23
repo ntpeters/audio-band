@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.Media;
 using Windows.Media.Control;
+using WindowsAudioSource.Wrappers;
 
 namespace WindowsAudioSource
 {
@@ -55,7 +56,7 @@ namespace WindowsAudioSource
             }
         }
 
-        public GlobalSystemMediaTransportControlsSession CurrentSession
+        public IGlobalSystemMediaTransportControlsSessionWrapper CurrentSession
         {
             get => _currentSession;
             private set => _currentSession = value;
@@ -71,8 +72,8 @@ namespace WindowsAudioSource
         public event EventHandler<RepeatMode> RepeatModeChanged;
 
         private IAudioSourceLogger _logger;
-        private GlobalSystemMediaTransportControlsSessionManager _sessionManager;
-        private GlobalSystemMediaTransportControlsSession _currentSession;
+        private IGlobalSystemMediaTransportControlsSessionManagerWrapper _sessionManager;
+        private IGlobalSystemMediaTransportControlsSessionWrapper _currentSession;
         private bool _isPlaying;
         private TimeSpan _trackProgress;
         private bool _shuffle;
@@ -89,17 +90,15 @@ namespace WindowsAudioSource
         // TODO: Convert into separate factory
         public static async Task<WindowsAudioSessionManager> CreateInstance(IAudioSourceLogger logger)
         {
-            var windowsAudioSessionManager = new WindowsAudioSessionManager(logger);
             var sessionManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
-            windowsAudioSessionManager.SetSessionManager(sessionManager);
+            var windowsAudioSessionManager = new WindowsAudioSessionManager(logger, new GlobalSystemMediaTransportControlsSessionManagerWrapper(sessionManager));
             return windowsAudioSessionManager;
         }
 
-        public WindowsAudioSessionManager(IAudioSourceLogger logger)
+        public WindowsAudioSessionManager(IAudioSourceLogger logger, IGlobalSystemMediaTransportControlsSessionManagerWrapper sessionManager)
         {
             _logger = logger;
-            //var sessionManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
-            //SetSessionManager(sessionManager);
+            SetSessionManager(sessionManager);
         }
 
         ~WindowsAudioSessionManager()
@@ -107,7 +106,7 @@ namespace WindowsAudioSource
             SetSessionManager(null);
         }
 
-        private void SetSessionManager(GlobalSystemMediaTransportControlsSessionManager newSessionManager)
+        private void SetSessionManager(IGlobalSystemMediaTransportControlsSessionManagerWrapper newSessionManager)
         {
             // Unregister event handlers from the old session manager
             if (_sessionManager != null)
@@ -136,7 +135,7 @@ namespace WindowsAudioSource
             }
         }
 
-        private void SetCurrentSession(GlobalSystemMediaTransportControlsSession newCurrentSession)
+        private void SetCurrentSession(IGlobalSystemMediaTransportControlsSessionWrapper newCurrentSession)
         {
             // TODO: Restore this
             //if (newCurrentSession == _currentSession)
@@ -208,7 +207,7 @@ namespace WindowsAudioSource
             }
         }
 
-        private void UpdateCurrentSession(GlobalSystemMediaTransportControlsSessionManager sender, CurrentSessionChangedEventArgs args)
+        private void UpdateCurrentSession(IGlobalSystemMediaTransportControlsSessionManagerWrapper sender, CurrentSessionChangedEventArgs args)
         {
             if (sender == null)
             {
@@ -219,7 +218,7 @@ namespace WindowsAudioSource
             SetCurrentSession(sender.GetCurrentSession());
         }
 
-        private void UpdateSession(GlobalSystemMediaTransportControlsSessionManager sender, SessionsChangedEventArgs args)
+        private void UpdateSession(IGlobalSystemMediaTransportControlsSessionManagerWrapper sender, SessionsChangedEventArgs args)
         {
             if (sender == null)
             {
@@ -279,7 +278,7 @@ namespace WindowsAudioSource
             SetCurrentSession(newSession);
         }
 
-        private bool ShouldCheckForBetterSession(IReadOnlyList<GlobalSystemMediaTransportControlsSession> sessions, out string reason)
+        private bool ShouldCheckForBetterSession(IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> sessions, out string reason)
         {
             if (_currentSession == null)
             {
@@ -316,7 +315,7 @@ namespace WindowsAudioSource
             return false;
         }
 
-        private GlobalSystemMediaTransportControlsSession GetNextBestSession(IReadOnlyList<GlobalSystemMediaTransportControlsSession> sessions)
+        private IGlobalSystemMediaTransportControlsSessionWrapper GetNextBestSession(IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> sessions)
         {
             try
             {
@@ -351,7 +350,7 @@ namespace WindowsAudioSource
             return null;
         }
 
-        private void UpdatePlaybackInfo(GlobalSystemMediaTransportControlsSession sender, PlaybackInfoChangedEventArgs args)
+        private void UpdatePlaybackInfo(IGlobalSystemMediaTransportControlsSessionWrapper sender, PlaybackInfoChangedEventArgs args)
         {
             if (sender == null)
             {
@@ -394,7 +393,7 @@ namespace WindowsAudioSource
             }
         }
 
-        private void UpdateTrackProgress(GlobalSystemMediaTransportControlsSession sender, TimelinePropertiesChangedEventArgs args)
+        private void UpdateTrackProgress(IGlobalSystemMediaTransportControlsSessionWrapper sender, TimelinePropertiesChangedEventArgs args)
         {
             if (sender == null)
             {
@@ -427,7 +426,7 @@ namespace WindowsAudioSource
             }
         }
 
-        private void UpdateTrackInfo(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args)
+        private void UpdateTrackInfo(IGlobalSystemMediaTransportControlsSessionWrapper sender, MediaPropertiesChangedEventArgs args)
         {
             if (sender == null)
             {
@@ -495,7 +494,7 @@ namespace WindowsAudioSource
             RepeatModeChanged.Invoke(this, _repeatMode);
         }
 
-        private void LogSessionCapabilities(GlobalSystemMediaTransportControlsSession session)
+        private void LogSessionCapabilities(IGlobalSystemMediaTransportControlsSessionWrapper session)
         {
             // These capabilities can change based on the current session state.
             // For example, when media is already playing "IsPlayEnabled" is false and "IsPauseEnabled" is true, and the opposite is the case when media is paused.

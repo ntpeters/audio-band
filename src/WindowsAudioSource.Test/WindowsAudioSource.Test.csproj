@@ -43,10 +43,15 @@
     <Reference Include="System.Core" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="WindowsAudioSessionManagerTests.cs" />
     <Compile Include="WindowsAudioSourceTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\AudioBand.AudioSource\AudioBand.AudioSource.csproj">
+      <Project>{30F2BFEA-788A-494D-88E7-F2070528EBEA}</Project>
+      <Name>AudioBand.AudioSource</Name>
+    </ProjectReference>
     <ProjectReference Include="..\WindowsAudioSource\WindowsAudioSource.csproj">
       <Project>{398a9ca6-6a19-4b97-9d40-edf6c3f0c7a1}</Project>
       <Name>WindowsAudioSource</Name>

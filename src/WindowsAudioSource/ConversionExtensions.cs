@@ -6,8 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Media;
-using Windows.Media.Control;
 using Windows.Storage.Streams;
+using WindowsAudioSource.Wrappers;
 
 namespace WindowsAudioSource
 {
@@ -36,7 +36,7 @@ namespace WindowsAudioSource
             }
         }
 
-        public static async Task<TrackInfoChangedEventArgs> ToTrackInfoChangedEventArgsAsync(this GlobalSystemMediaTransportControlsSessionMediaProperties mediaProperties, bool includeAlbumArt = true, IAudioSourceLogger logger = null)
+        public static async Task<TrackInfoChangedEventArgs> ToTrackInfoChangedEventArgsAsync(this IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper mediaProperties, bool includeAlbumArt = true, IAudioSourceLogger logger = null)
         {
             // Only attempt converting album art if it was requested
             // TODO: Album art sometimes changes even when we choose not to update the track info. Is this being treated as a reference? Do we need to hold a copy?
