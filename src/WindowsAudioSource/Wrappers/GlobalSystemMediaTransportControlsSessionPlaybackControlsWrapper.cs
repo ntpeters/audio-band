@@ -3,9 +3,12 @@ using Windows.Media.Control;
 
 namespace WindowsAudioSource.Wrappers
 {
+    /// <inheritdoc cref="IGlobalSystemMediaTransportControlsSessionWrapper"/>
     public class GlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper : IGlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper
     {
-        private GlobalSystemMediaTransportControlsSessionPlaybackControls _playbackControls;
+        public GlobalSystemMediaTransportControlsSessionPlaybackControls WrappedInstance => _playbackControls;
+
+        private readonly GlobalSystemMediaTransportControlsSessionPlaybackControls _playbackControls;
 
         public GlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper(GlobalSystemMediaTransportControlsSessionPlaybackControls playbackControls)
         {

@@ -3,9 +3,12 @@ using Windows.Media.Control;
 
 namespace WindowsAudioSource.Wrappers
 {
+    /// <inheritdoc cref="IGlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper"/>
     public class GlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper : IGlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper
     {
-        private GlobalSystemMediaTransportControlsSessionTimelineProperties _timelineProperties;
+        public GlobalSystemMediaTransportControlsSessionTimelineProperties WrappedInstance => _timelineProperties;
+
+        private readonly GlobalSystemMediaTransportControlsSessionTimelineProperties _timelineProperties;
 
         public GlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper(GlobalSystemMediaTransportControlsSessionTimelineProperties timelineProperties)
         {

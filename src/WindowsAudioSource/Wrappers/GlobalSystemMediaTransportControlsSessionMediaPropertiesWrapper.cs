@@ -6,9 +6,12 @@ using Windows.Storage.Streams;
 
 namespace WindowsAudioSource.Wrappers
 {
+    /// <inheritdoc cref="IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper"/>
     public class GlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper : IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper
     {
-        private GlobalSystemMediaTransportControlsSessionMediaProperties _mediaProperties;
+        public GlobalSystemMediaTransportControlsSessionMediaProperties WrappedInstance => _mediaProperties;
+
+        private readonly GlobalSystemMediaTransportControlsSessionMediaProperties _mediaProperties;
 
         public GlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper(GlobalSystemMediaTransportControlsSessionMediaProperties mediaProperties)
         {

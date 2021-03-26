@@ -1,67 +1,89 @@
+using System;
 using Windows.Foundation;
-using Windows.Foundation.Metadata;
 using Windows.Media;
 using Windows.Media.Control;
 
 namespace WindowsAudioSource.Wrappers
 {
-    public interface IGlobalSystemMediaTransportControlsSessionWrapper
+    /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession"/>
+    /// <remarks>
+    /// This is a thin wrapper around <see cref="GlobalSystemMediaTransportControlsSession"/> to support mocking.
+    /// </remarks>
+    public interface IGlobalSystemMediaTransportControlsSessionWrapper : IWrapper<GlobalSystemMediaTransportControlsSession>, IEquatable<IGlobalSystemMediaTransportControlsSessionWrapper>
     {
-        IAsyncOperation<IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper> TryGetMediaPropertiesAsync();
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.MediaPropertiesChanged"/>
+        event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionWrapper, MediaPropertiesChangedEventArgs> MediaPropertiesChanged;
 
-        IGlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper GetTimelineProperties();
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.PlaybackInfoChanged"/>
+        event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionWrapper, PlaybackInfoChangedEventArgs> PlaybackInfoChanged;
 
-        IGlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper GetPlaybackInfo();
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TimelinePropertiesChanged"/>
+        event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionWrapper, TimelinePropertiesChangedEventArgs> TimelinePropertiesChanged;
 
-        [RemoteAsync]
-        IAsyncOperation<bool> TryPlayAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryPauseAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryStopAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryRecordAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryFastForwardAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryRewindAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TrySkipNextAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TrySkipPreviousAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryChangeChannelUpAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryChangeChannelDownAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryTogglePlayPauseAsync();
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryChangeAutoRepeatModeAsync(MediaPlaybackAutoRepeatMode requestedAutoRepeatMode);
-
-        IAsyncOperation<bool> TryChangePlaybackRateAsync(double requestedPlaybackRate);
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryChangeShuffleActiveAsync(bool requestedShuffleState);
-
-        [RemoteAsync]
-        IAsyncOperation<bool> TryChangePlaybackPositionAsync(long requestedPlaybackPosition);
-
-
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.SourceAppUserModelId"/>
         string SourceAppUserModelId { get; }
 
-        event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionWrapper, MediaPropertiesChangedEventArgs> MediaPropertiesChanged;
-        event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionWrapper, PlaybackInfoChangedEventArgs> PlaybackInfoChanged;
-        event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionWrapper, TimelinePropertiesChangedEventArgs> TimelinePropertiesChanged;
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryGetMediaPropertiesAsync"/>
+        /// <remarks>
+        /// Return value is wrapped as an <see cref="IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper"/>.
+        /// </remarks>
+        IAsyncOperation<IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper> TryGetMediaPropertiesAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.GetTimelineProperties"/>
+        /// <remarks>
+        /// Return value is wrapped as an <see cref="IGlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper"/>.
+        /// </remarks>
+        IGlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper GetTimelineProperties();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.GetPlaybackInfo"/>
+        /// <remarks>
+        /// Return value is wrapped as an <see cref="IGlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper"/>.
+        /// </remarks>
+        IGlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper GetPlaybackInfo();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession."/>
+        IAsyncOperation<bool> TryPlayAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryPauseAsync"/>
+        IAsyncOperation<bool> TryPauseAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryStopAsync"/>
+        IAsyncOperation<bool> TryStopAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryRecordAsync"/>
+        IAsyncOperation<bool> TryRecordAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryFastForwardAsync"/>
+        IAsyncOperation<bool> TryFastForwardAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryRewindAsync"/>
+        IAsyncOperation<bool> TryRewindAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TrySkipNextAsync"/>
+        IAsyncOperation<bool> TrySkipNextAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TrySkipPreviousAsync"/>
+        IAsyncOperation<bool> TrySkipPreviousAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryChangeChannelUpAsync"/>
+        IAsyncOperation<bool> TryChangeChannelUpAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryChangeChannelDownAsync"/>
+        IAsyncOperation<bool> TryChangeChannelDownAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryTogglePlayPauseAsync"/>
+        IAsyncOperation<bool> TryTogglePlayPauseAsync();
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryChangeAutoRepeatModeAsync"/>
+        IAsyncOperation<bool> TryChangeAutoRepeatModeAsync(MediaPlaybackAutoRepeatMode requestedAutoRepeatMode);
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryChangePlaybackRateAsync"/>
+        IAsyncOperation<bool> TryChangePlaybackRateAsync(double requestedPlaybackRate);
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryChangeShuffleActiveAsync"/>
+        IAsyncOperation<bool> TryChangeShuffleActiveAsync(bool requestedShuffleState);
+
+        /// <inheritdoc cref="GlobalSystemMediaTransportControlsSession.TryChangePlaybackPositionAsync"/>
+        IAsyncOperation<bool> TryChangePlaybackPositionAsync(long requestedPlaybackPosition);
     }
 }
