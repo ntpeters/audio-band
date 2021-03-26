@@ -21,16 +21,32 @@ namespace WindowsAudioSource
             Options = SettingOptions.ReadOnly)]
         public string CurrentSessionSource
         {
-            get => _windowsAudioSessionManager.CurrentSessionSource;
-            set => _windowsAudioSessionManager.CurrentSessionSource = value;
+            // TODO: Fix this
+            get => _windowsAudioSessionManager?.CurrentSessionSource ?? string.Empty;
+            set
+            {
+                if (_windowsAudioSessionManager == null)
+                {
+                    return;
+                }
+                _windowsAudioSessionManager.CurrentSessionSource = value;
+            }
         }
 
         [AudioSourceSetting("Session Source Disallow List",
             Description = "Comma separated list of AppUserModelIds to block from being controlled.")]
         public string SessionSourceDisallowList
         {
-            get => _windowsAudioSessionManager.SessionSourceDisallowList;
-            set => _windowsAudioSessionManager.SessionSourceDisallowList = value;
+            // TODO: Fix this
+            get => _windowsAudioSessionManager?.SessionSourceDisallowList ?? string.Empty;
+            set
+            {
+                if (_windowsAudioSessionManager == null)
+                {
+                    return;
+                }
+                _windowsAudioSessionManager.SessionSourceDisallowList = value;
+            }
         }
 
         // NOTE: ReadOnly only seems to work for strings?
@@ -55,18 +71,23 @@ namespace WindowsAudioSource
 
         public async Task ActivateAsync()
         {
-            _windowsAudioSessionManager = await WindowsAudioSessionManager.CreateInstance(Logger);
-            _windowsAudioSessionManager.SettingChanged += SettingChanged;
-            _windowsAudioSessionManager.TrackInfoChanged += TrackInfoChanged;
-            _windowsAudioSessionManager.IsPlayingChanged += IsPlayingChanged;
-            _windowsAudioSessionManager.TrackProgressChanged += TrackProgressChanged;
-            _windowsAudioSessionManager.VolumeChanged += VolumeChanged;
-            _windowsAudioSessionManager.ShuffleChanged += ShuffleChanged;
-            _windowsAudioSessionManager.RepeatModeChanged += RepeatModeChanged;
+            // TODO: Fix this
+            _windowsAudioSessionManager = await WindowsAudioSessionManager.CreateInstance(Logger,
+                (windowsAudioSessionManager) =>
+                {
+                    windowsAudioSessionManager.SettingChanged += (sender, args) => SettingChanged?.Invoke(this, args);
+                    windowsAudioSessionManager.TrackInfoChanged += (sender, args) => TrackInfoChanged?.Invoke(this, args);
+                    windowsAudioSessionManager.IsPlayingChanged += (sender, args) => IsPlayingChanged?.Invoke(this, args);
+                    windowsAudioSessionManager.TrackProgressChanged += (sender, args) => TrackProgressChanged?.Invoke(this, args);
+                    windowsAudioSessionManager.VolumeChanged += (sender, args) => VolumeChanged?.Invoke(this, args);
+                    windowsAudioSessionManager.ShuffleChanged += (sender, args) => ShuffleChanged?.Invoke(this, args);
+                    windowsAudioSessionManager.RepeatModeChanged += (sender, args) => RepeatModeChanged?.Invoke(this, args);
+                });
         }
 
         public Task DeactivateAsync()
         {
+            // TODO: Fix this
             _windowsAudioSessionManager.SettingChanged -= SettingChanged;
             _windowsAudioSessionManager.TrackInfoChanged -= TrackInfoChanged;
             _windowsAudioSessionManager.IsPlayingChanged -= IsPlayingChanged;

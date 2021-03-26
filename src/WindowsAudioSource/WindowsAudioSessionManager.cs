@@ -1,6 +1,7 @@
 using AudioBand.AudioSource;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Media;
@@ -40,7 +41,8 @@ namespace WindowsAudioSource
                 }
 
                 _currentSourceAppUserModlelId = value;
-                SettingChanged?.Invoke(this, new SettingChangedEventArgs("Current Session Source"));
+                //SettingChanged?.Invoke(this, new SettingChangedEventArgs("Current Session Source"));
+                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs("Current Session Source"));
             }
         }
 
@@ -52,7 +54,7 @@ namespace WindowsAudioSource
             {
                 _logger.Debug($"SessionSourceDisallowList Changed: {value}");
                 _disallowedAppUserModelIds = value.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
-                UpdateSession(_sessionManager, null);
+                OnSessionsChanged(_sessionManager, null);
             }
         }
 
@@ -81,6 +83,7 @@ namespace WindowsAudioSource
         private string _currentTrackName;
         private string _currentArtist;
         private string _currentAlbum;
+        private Image _albumArt;
 
         // For settings
         // TODO: Hookup these fields to settings
@@ -88,19 +91,21 @@ namespace WindowsAudioSource
         private IList<string> _disallowedAppUserModelIds = new List<string>();
 
         // TODO: Convert into separate factory
-        public static async Task<WindowsAudioSessionManager> CreateInstance(IAudioSourceLogger logger)
+        public static async Task<WindowsAudioSessionManager> CreateInstance(IAudioSourceLogger logger, Action<WindowsAudioSessionManager> preInitSetup)
         {
             var sessionManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
-            var windowsAudioSessionManager = new WindowsAudioSessionManager(logger, new GlobalSystemMediaTransportControlsSessionManagerWrapper(sessionManager));
+            var windowsAudioSessionManager = new WindowsAudioSessionManager(logger, new GlobalSystemMediaTransportControlsSessionManagerWrapper(sessionManager), preInitSetup);
             return windowsAudioSessionManager;
         }
 
-        public WindowsAudioSessionManager(IAudioSourceLogger logger, IGlobalSystemMediaTransportControlsSessionManagerWrapper sessionManager)
+        public WindowsAudioSessionManager(IAudioSourceLogger logger, IGlobalSystemMediaTransportControlsSessionManagerWrapper sessionManager, Action<WindowsAudioSessionManager> preInitSetup)
         {
             _logger = logger;
+            preInitSetup(this);
             SetSessionManager(sessionManager);
         }
 
+        // TODO: use disposable
         ~WindowsAudioSessionManager()
         {
             SetSessionManager(null);
@@ -111,8 +116,8 @@ namespace WindowsAudioSource
             // Unregister event handlers from the old session manager
             if (_sessionManager != null)
             {
-                _sessionManager.CurrentSessionChanged -= UpdateCurrentSession;
-                _sessionManager.SessionsChanged -= UpdateSession;
+                _sessionManager.CurrentSessionChanged -= OnCurrentSessionChanged;
+                _sessionManager.SessionsChanged -= OnSessionsChanged;
             }
 
             // Swap the session managers
@@ -122,11 +127,11 @@ namespace WindowsAudioSource
             if (_sessionManager != null)
             {
                 // TODO: Add setting to choose between the just system's current session or letting us try to make a better guess
-                _sessionManager.CurrentSessionChanged += UpdateCurrentSession;
-                //_sessionManager.SessionsChanged += UpdateSession;
+                _sessionManager.CurrentSessionChanged += OnCurrentSessionChanged;
+                // TODO: Restore this
+                //_sessionManager.SessionsChanged += OnSessionsChanged;
 
                 // Look for the new best session from the new session manager, and update everything with it
-                //UpdateSession(_sessionManager, null);
                 SetCurrentSession(_sessionManager.GetCurrentSession());
             }
             else
@@ -137,17 +142,9 @@ namespace WindowsAudioSource
 
         private void SetCurrentSession(IGlobalSystemMediaTransportControlsSessionWrapper newCurrentSession)
         {
-            // TODO: Restore this
-            //if (newCurrentSession == _currentSession)
-            //{
-            //    Logger.Debug("Ignoring current session changed event: New session is already the current session");
-            //    return;
-            //}
-
-            // TODO: Delete this
-            if (newCurrentSession == null && _currentSession == null)
+            if (Equals(newCurrentSession, _currentSession))
             {
-                _logger.Debug("Ignoring current session changed event: Both current and new sessions are null");
+                _logger.Debug("Ignoring current session changed event: New session is already the current session");
                 return;
             }
 
@@ -172,9 +169,9 @@ namespace WindowsAudioSource
             // Unregister event handlers from the old session
             if (_currentSession != null)
             {
-                _currentSession.PlaybackInfoChanged -= UpdatePlaybackInfo;
-                _currentSession.TimelinePropertiesChanged -= UpdateTrackProgress;
-                _currentSession.MediaPropertiesChanged -= UpdateTrackInfo;
+                _currentSession.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+                _currentSession.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
+                _currentSession.MediaPropertiesChanged -= OnMediaPropertiesChanged;
             }
 
             // Swap the sessions
@@ -185,14 +182,14 @@ namespace WindowsAudioSource
             if (_currentSession != null)
             {
                 // Register event handlers on the new current session
-                _currentSession.PlaybackInfoChanged += UpdatePlaybackInfo;
-                _currentSession.TimelinePropertiesChanged += UpdateTrackProgress;
-                _currentSession.MediaPropertiesChanged += UpdateTrackInfo;
+                _currentSession.PlaybackInfoChanged += OnPlaybackInfoChanged;
+                _currentSession.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
+                _currentSession.MediaPropertiesChanged += OnMediaPropertiesChanged;
 
                 // Update everything for the new session
-                UpdatePlaybackInfo(_currentSession, null);
-                UpdateTrackProgress(_currentSession, null);
-                UpdateTrackInfo(_currentSession, null);
+                OnPlaybackInfoChanged(_currentSession, null);
+                OnTimelinePropertiesChanged(_currentSession, null);
+                OnMediaPropertiesChanged(_currentSession, null);
 
                 LogSessionCapabilities(_currentSession);
             }
@@ -207,7 +204,8 @@ namespace WindowsAudioSource
             }
         }
 
-        private void UpdateCurrentSession(IGlobalSystemMediaTransportControlsSessionManagerWrapper sender, CurrentSessionChangedEventArgs args)
+        #region Session Manager Event Handler Delegates
+        private void OnCurrentSessionChanged(IGlobalSystemMediaTransportControlsSessionManagerWrapper sender, CurrentSessionChangedEventArgs args)
         {
             if (sender == null)
             {
@@ -218,7 +216,7 @@ namespace WindowsAudioSource
             SetCurrentSession(sender.GetCurrentSession());
         }
 
-        private void UpdateSession(IGlobalSystemMediaTransportControlsSessionManagerWrapper sender, SessionsChangedEventArgs args)
+        private void OnSessionsChanged(IGlobalSystemMediaTransportControlsSessionManagerWrapper sender, SessionsChangedEventArgs args)
         {
             if (sender == null)
             {
@@ -226,12 +224,12 @@ namespace WindowsAudioSource
                 return;
             }
 
-            // TODO: Restore this
-            //if (sender.GetCurrentSession() == _currentSession)
-            //{
-            //    Logger.Debug("Ignoring session changed event: Current session has not changed");
-            //    return;
-            //}
+            // TODO: do we actually want this check here?
+            if (Equals(sender.GetCurrentSession(), _currentSession))
+            {
+                _logger.Debug("Ignoring session changed event: Current session has not changed");
+                return;
+            }
 
             var currentSessions = sender.GetSessions();
             if (!ShouldCheckForBetterSession(currentSessions, out var checkForBetterSessionReason))
@@ -257,7 +255,7 @@ namespace WindowsAudioSource
             {
                 _logger.Debug("No valid session found, resetting media info and playback state");
             }
-            else if (newSession == _currentSession)
+            else if (Equals(newSession, _currentSession))
             {
                 _logger.Debug("No better session found, keeping current session");
                 return;
@@ -277,6 +275,7 @@ namespace WindowsAudioSource
 
             SetCurrentSession(newSession);
         }
+        #endregion Session Manager Event Handler Delegates
 
         private bool ShouldCheckForBetterSession(IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> sessions, out string reason)
         {
@@ -330,7 +329,7 @@ namespace WindowsAudioSource
                 }
                 else
                 {
-                    // When there is more than none music session, select the one in the "most active" playback state
+                    // When there is more than one music session, select the one in the "most active" playback state
                     var musicSessionsByPlaybackStatus = musicSessions.GroupBy(session => session.GetPlaybackInfo().PlaybackStatus);
                     foreach (var playbackStatus in SupportedPlaybackStatusesInPriorityOrder)
                     {
@@ -350,7 +349,8 @@ namespace WindowsAudioSource
             return null;
         }
 
-        private void UpdatePlaybackInfo(IGlobalSystemMediaTransportControlsSessionWrapper sender, PlaybackInfoChangedEventArgs args)
+        #region Session Event Handler Delegates
+        private void OnPlaybackInfoChanged(IGlobalSystemMediaTransportControlsSessionWrapper sender, PlaybackInfoChangedEventArgs args)
         {
             if (sender == null)
             {
@@ -358,7 +358,7 @@ namespace WindowsAudioSource
                 return;
             }
 
-            if (sender != _currentSession)
+            if (!Equals(sender,_currentSession))
             {
                 _logger.Warn("Ignoring playback info changed event: Sender is not the current session");
                 return;
@@ -371,20 +371,23 @@ namespace WindowsAudioSource
                 if (currentIsPlaying != _isPlaying)
                 {
                     _isPlaying = currentIsPlaying;
-                    IsPlayingChanged.Invoke(this, _isPlaying);
+                    //IsPlayingChanged?.Invoke(this, _isPlaying);
+                    LogEventInvocationIfFailed(IsPlayingChanged, this, _isPlaying);
                 }
 
                 if (playbackInfo.IsShuffleActive != _shuffle)
                 {
                     _shuffle = playbackInfo.IsShuffleActive ?? false;
-                    ShuffleChanged.Invoke(this, _shuffle);
+                    //ShuffleChanged?.Invoke(this, _shuffle);
+                    LogEventInvocationIfFailed(ShuffleChanged, this, _shuffle);
                 }
 
                 var currentRepeatMode = playbackInfo.AutoRepeatMode.ToRepeatMode();
                 if (currentRepeatMode != _repeatMode)
                 {
                     _repeatMode = currentRepeatMode;
-                    RepeatModeChanged.Invoke(this, _repeatMode);
+                    //RepeatModeChanged?.Invoke(this, _repeatMode);
+                    LogEventInvocationIfFailed(RepeatModeChanged, this, _repeatMode);
                 }
             }
             catch (Exception e)
@@ -393,7 +396,7 @@ namespace WindowsAudioSource
             }
         }
 
-        private void UpdateTrackProgress(IGlobalSystemMediaTransportControlsSessionWrapper sender, TimelinePropertiesChangedEventArgs args)
+        private void OnTimelinePropertiesChanged(IGlobalSystemMediaTransportControlsSessionWrapper sender, TimelinePropertiesChangedEventArgs args)
         {
             if (sender == null)
             {
@@ -401,23 +404,29 @@ namespace WindowsAudioSource
                 return;
             }
 
-            if (sender != _currentSession)
+            if (!Equals(sender, _currentSession))
             {
                 _logger.Warn("Ignoring track progress changed event: Sender is not the current session");
                 return;
             }
 
+            // Some apps (I'm looking at you Groove Music) don't support changing the playback postition, but
+            // still fire a timeline properties changed event containing the initial timeline state when the
+            // session is first initiated.
+            if (!_currentSession.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
+            {
+                _logger.Warn("Ignoring track progress changed event: Current session does not support setting playback position");
+                return;
+            }
+
             try
             {
-                // TODO: Only set track progress if the current session *actually* supports setting it
-                // Some apps (I'm looking at you Groove Music) that don't support changing the playback postition 
-                // still fire a timeline properties changed event containing the initial timeline state when the
-                // session is first initiated.
                 var timelineProperties = sender.GetTimelineProperties();
                 if (timelineProperties.Position != _trackProgress)
                 {
                     _trackProgress = timelineProperties.Position;
-                    TrackProgressChanged.Invoke(this, _trackProgress);
+                    //TrackProgressChanged?.Invoke(this, _trackProgress);
+                    LogEventInvocationIfFailed(TrackProgressChanged, this, _trackProgress);
                 }
             }
             catch (Exception e)
@@ -426,7 +435,7 @@ namespace WindowsAudioSource
             }
         }
 
-        private void UpdateTrackInfo(IGlobalSystemMediaTransportControlsSessionWrapper sender, MediaPropertiesChangedEventArgs args)
+        private async void OnMediaPropertiesChanged(IGlobalSystemMediaTransportControlsSessionWrapper sender, MediaPropertiesChangedEventArgs args)
         {
             if (sender == null)
             {
@@ -434,7 +443,7 @@ namespace WindowsAudioSource
                 return;
             }
 
-            if (sender != _currentSession)
+            if (!Equals(sender, _currentSession))
             {
                 _logger.Warn("Ignoring track info changed event: Sender is not the current session");
                 return;
@@ -442,29 +451,25 @@ namespace WindowsAudioSource
 
             try
             {
-                var mediaProperties = sender.TryGetMediaPropertiesAsync().AsTask().GetAwaiter().GetResult();
-                // TODO: Restore this - Or, do we even care?
-                //if (_currentTrackName == mediaProperties.Title && _currentArtist == mediaProperties.Artist && _currentAlbum == mediaProperties.AlbumTitle)
-                //{
-                //    Logger.Debug("Ignoring track info changed event: New info is the same as the current info");
-                //    return;
-                //}
+                var mediaProperties = await sender.TryGetMediaPropertiesAsync();
 
                 // Convert media properties to event args to update track info.
-                // TODO: Only try to update the image if we don't already have album art and the album hasn't changed - Or, do we even care?
-                var trackInfoChangedArgs = mediaProperties.ToTrackInfoChangedEventArgsAsync(includeAlbumArt: true, _logger).GetAwaiter().GetResult();
+                var trackInfoChangedArgs = await mediaProperties.ToTrackInfoChangedEventArgsAsync(includeAlbumArt: true, _logger);
                 trackInfoChangedArgs.TrackLength = sender.GetTimelineProperties().EndTime.Duration();
                 _currentTrackName = trackInfoChangedArgs.TrackName;
                 _currentArtist = trackInfoChangedArgs.Artist;
                 _currentAlbum = trackInfoChangedArgs.Album;
+                _albumArt = trackInfoChangedArgs.AlbumArt;
 
-                TrackInfoChanged.Invoke(this, trackInfoChangedArgs);
+                //TrackInfoChanged.Invoke(this, trackInfoChangedArgs);
+                LogEventInvocationIfFailed(TrackInfoChanged, this, trackInfoChangedArgs);
             }
             catch (Exception e)
             {
                 _logger.Error(e);
             }
         }
+        #endregion Session Event Handler Delegates
 
         private void ResetTrackInfo()
         {
@@ -473,25 +478,33 @@ namespace WindowsAudioSource
             _currentAlbum = null;
             var emptyTrackInfoChangedArgs = new TrackInfoChangedEventArgs();
             emptyTrackInfoChangedArgs.AlbumArt = null;  // Must be null to ensure we reset to the placeholder art
-            TrackInfoChanged.Invoke(this, emptyTrackInfoChangedArgs);
+            //TrackInfoChanged.Invoke(this, emptyTrackInfoChangedArgs);
+            LogEventInvocationIfFailed(TrackInfoChanged, this, emptyTrackInfoChangedArgs);
+
+            _albumArt.Dispose();
+            _albumArt = null;
         }
 
         private void ResetTrackProgress()
         {
             _trackProgress = TimeSpan.Zero;
-            TrackProgressChanged.Invoke(this, _trackProgress);
+            //TrackProgressChanged.Invoke(this, _trackProgress);
+            LogEventInvocationIfFailed(TrackProgressChanged, this, _trackProgress);
         }
 
         private void ResetPlaybackInfo()
         {
             _isPlaying = false;
-            IsPlayingChanged.Invoke(this, _isPlaying);
+            //IsPlayingChanged.Invoke(this, _isPlaying);
+            LogEventInvocationIfFailed(IsPlayingChanged, this, _isPlaying);
 
             _shuffle = false;
-            ShuffleChanged.Invoke(this, _shuffle);
+            //ShuffleChanged.Invoke(this, _shuffle);
+            LogEventInvocationIfFailed(ShuffleChanged, this, _shuffle);
 
             _repeatMode = RepeatMode.Off;
-            RepeatModeChanged.Invoke(this, _repeatMode);
+            //RepeatModeChanged.Invoke(this, _repeatMode);
+            LogEventInvocationIfFailed(RepeatModeChanged, this, _repeatMode);
         }
 
         private void LogSessionCapabilities(IGlobalSystemMediaTransportControlsSessionWrapper session)
@@ -508,6 +521,25 @@ namespace WindowsAudioSource
                 $"Repeat={sessionControls.IsRepeatEnabled}; " +
                 $"Shuffle={sessionControls.IsShuffleEnabled}; " +
                 $"PlaybackPosition={sessionControls.IsPlaybackPositionEnabled}; ");
+        }
+
+        private void LogEventInvocationIfFailed<T>(EventHandler<T> eventHandler, object sender, T args)
+        {
+            if (eventHandler == null)
+            {
+                _logger.Error($"Event handler is null. ArgsType={typeof(T)}");
+            }
+            else
+            {
+                try
+                {
+                    eventHandler.Invoke(sender, args);
+                }
+                catch (Exception e)
+                {
+                    _logger.Error(e);
+                }
+            }
         }
     }
 }
