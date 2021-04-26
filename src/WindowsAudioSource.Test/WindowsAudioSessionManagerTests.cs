@@ -1,6 +1,9 @@
 using AudioBand.AudioSource;
 using Moq;
+using System;
+using System.Linq;
 using System.Threading.Tasks;
+using Windows.Foundation;
 using Windows.Media.Control;
 using WindowsAudioSource.Wrappers;
 using Xunit;
@@ -9,20 +12,19 @@ namespace WindowsAudioSource.Test
 {
     public class WindowsAudioSessionManagerTests
     {
-        [Fact]
-        public async Task WindowsAudioSessionManager_CreateInstance()
+        private Mock<IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory> _mockSystemSessionManagerFactory;
+
+        public WindowsAudioSessionManagerTests()
         {
-            var mockLogger = new Mock<IAudioSourceLogger>();
-            var sessionManager = await WindowsAudioSessionManager.CreateInstance(mockLogger.Object);
-            Assert.NotNull(sessionManager);
+            _mockSystemSessionManagerFactory = new Mock<IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory>();
         }
 
         [Fact]
         public void WindowsAudioSessionManager_Create()
         {
             var mockLogger = new Mock<IAudioSourceLogger>();
-            var mockSystemSessionManager = new Mock<IGlobalSystemMediaTransportControlsSessionManagerWrapper>();
-            Assert.NotNull(new WindowsAudioSessionManager(mockLogger.Object, mockSystemSessionManager.Object));
+            var sessionManager = new WindowsAudioSessionManager(_mockSystemSessionManagerFactory.Object);
+            Assert.NotNull(sessionManager);
         }
     }
 }

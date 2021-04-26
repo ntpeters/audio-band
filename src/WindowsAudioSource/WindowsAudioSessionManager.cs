@@ -138,7 +138,7 @@ namespace WindowsAudioSource
         public event EventHandler<bool> ShuffleChanged;
         public event EventHandler<RepeatMode> RepeatModeChanged;
 
-        private readonly GlobalSystemMediaTransportControlsSessionManagerWrapperFactory _windowsAudioSessionManagerFactory;
+        private readonly IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory _windowsAudioSessionManagerFactory;
         private IAudioSourceLogger _logger;
         private IGlobalSystemMediaTransportControlsSessionManagerWrapper _sessionManager;
         private IGlobalSystemMediaTransportControlsSessionWrapper _currentSession;
@@ -160,7 +160,7 @@ namespace WindowsAudioSource
         private string _currentSourceNextPreviousCapability = string.Empty;
         private string _currentSourcePlaybackPositionCapability = string.Empty;
 
-        public WindowsAudioSessionManager(GlobalSystemMediaTransportControlsSessionManagerWrapperFactory windowsAudioSessionManagerFactory)
+        public WindowsAudioSessionManager(IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory windowsAudioSessionManagerFactory)
         {
             _windowsAudioSessionManagerFactory = windowsAudioSessionManagerFactory;
         }
