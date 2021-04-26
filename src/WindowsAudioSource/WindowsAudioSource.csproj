@@ -9,11 +9,12 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>WindowsAudioSource</RootNamespace>
     <AssemblyName>WindowsAudioSource</AssemblyName>
-    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.7</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <NuGetPackageImportStamp>
     </NuGetPackageImportStamp>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -44,9 +45,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Extensions\GlobalSystemMediaTransportControlsSessionWrapperExtensions.cs" />
     <Compile Include="Extensions\TypedEventHandlerExtensions.cs" />
+    <Compile Include="IWindowsAudioSessionManager.cs" />
+    <Compile Include="SettingConstants.cs" />
+    <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionManagerWrapperFactory.cs" />
     <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionWrapper.cs" />
     <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper.cs" />
+    <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory.cs" />
     <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper.cs" />
     <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper.cs" />
     <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper.cs" />
