@@ -6,11 +6,12 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.Media;
 using Windows.Media.Control;
+using WindowsAudioSource.Extensions;
 using WindowsAudioSource.Wrappers;
 
 namespace WindowsAudioSource
 {
-    public class WindowsAudioSessionManager
+    public class WindowsAudioSessionManager : IWindowsAudioSessionManager
     {
         private static readonly GlobalSystemMediaTransportControlsSessionPlaybackStatus[] SupportedPlaybackStatusesInPriorityOrder =
             new GlobalSystemMediaTransportControlsSessionPlaybackStatus[]
@@ -28,7 +29,6 @@ namespace WindowsAudioSource
                 MediaPlaybackType.Music
             };
 
-        // TODO: Hookup these properties to settings
         public string CurrentSessionSource
         {
             get => _currentSourceAppUserModlelId;
@@ -42,7 +42,24 @@ namespace WindowsAudioSource
 
                 _currentSourceAppUserModlelId = value;
                 //SettingChanged?.Invoke(this, new SettingChangedEventArgs("Current Session Source"));
-                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs("Current Session Source"));
+                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionSourceName));
+            }
+        }
+
+        public string CurrentSessionType
+        {
+            get => _currentSourceType;
+
+            set
+            {
+                if (value == _currentSourceType)
+                {
+                    return;
+                }
+
+                _currentSourceType = value;
+                //SettingChanged?.Invoke(this, new SettingChangedEventArgs("Current Session Source"));
+                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionTypeName));
             }
         }
 
@@ -52,9 +69,57 @@ namespace WindowsAudioSource
 
             set
             {
-                _logger.Debug($"SessionSourceDisallowList Changed: {value}");
+                _logger?.Debug($"SessionSourceDisallowList Changed: {value}");
                 _disallowedAppUserModelIds = value.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
                 OnSessionsChanged(_sessionManager, null);
+            }
+        }
+
+        public string CurrentSessionPlayPauseCapability
+        {
+            get => _currentSourcePlayPauseCapability;
+
+            set
+            {
+                if (value == _currentSourcePlayPauseCapability)
+                {
+                    return;
+                }
+
+                _currentSourcePlayPauseCapability = value;
+                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionPlayPauseCapabilityName));
+            }
+        }
+
+        public string CurrentSessionNextPreviousCapability
+        {
+            get => _currentSourceNextPreviousCapability;
+
+            set
+            {
+                if (value == _currentSourceNextPreviousCapability)
+                {
+                    return;
+                }
+
+                _currentSourceNextPreviousCapability = value;
+                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionNextPreviousCapabilityName));
+            }
+        }
+
+        public string CurrentSessionPlaybackPositionCapability
+        {
+            get => _currentSourcePlaybackPositionCapability;
+
+            set
+            {
+                if (value == _currentSourcePlaybackPositionCapability)
+                {
+                    return;
+                }
+
+                _currentSourcePlaybackPositionCapability = value;
+                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionPlaybackPositionCapabilityName));
             }
         }
 
@@ -73,6 +138,7 @@ namespace WindowsAudioSource
         public event EventHandler<bool> ShuffleChanged;
         public event EventHandler<RepeatMode> RepeatModeChanged;
 
+        private readonly GlobalSystemMediaTransportControlsSessionManagerWrapperFactory _windowsAudioSessionManagerFactory;
         private IAudioSourceLogger _logger;
         private IGlobalSystemMediaTransportControlsSessionManagerWrapper _sessionManager;
         private IGlobalSystemMediaTransportControlsSessionWrapper _currentSession;
@@ -88,28 +154,25 @@ namespace WindowsAudioSource
         // For settings
         // TODO: Hookup these fields to settings
         private string _currentSourceAppUserModlelId = string.Empty;
+        private string _currentSourceType = string.Empty;
         private IList<string> _disallowedAppUserModelIds = new List<string>();
+        private string _currentSourcePlayPauseCapability = string.Empty;
+        private string _currentSourceNextPreviousCapability = string.Empty;
+        private string _currentSourcePlaybackPositionCapability = string.Empty;
 
-        // TODO: Convert into separate factory
-        public static async Task<WindowsAudioSessionManager> CreateInstance(IAudioSourceLogger logger, Action<WindowsAudioSessionManager> preInitSetup)
+        public WindowsAudioSessionManager(GlobalSystemMediaTransportControlsSessionManagerWrapperFactory windowsAudioSessionManagerFactory)
         {
-            var sessionManager = await GlobalSystemMediaTransportControlsSessionManager.RequestAsync();
-            var windowsAudioSessionManager = new WindowsAudioSessionManager(logger, new GlobalSystemMediaTransportControlsSessionManagerWrapper(sessionManager), preInitSetup);
-            return windowsAudioSessionManager;
+            _windowsAudioSessionManagerFactory = windowsAudioSessionManagerFactory;
         }
 
-        public WindowsAudioSessionManager(IAudioSourceLogger logger, IGlobalSystemMediaTransportControlsSessionManagerWrapper sessionManager, Action<WindowsAudioSessionManager> preInitSetup)
+        public async Task InitializeAsync(IAudioSourceLogger logger)
         {
             _logger = logger;
-            preInitSetup(this);
+            var sessionManager = await _windowsAudioSessionManagerFactory.GetInstanceAsync();
             SetSessionManager(sessionManager);
         }
 
-        // TODO: use disposable
-        ~WindowsAudioSessionManager()
-        {
-            SetSessionManager(null);
-        }
+        public void Unintialize() => SetSessionManager(null);
 
         private void SetSessionManager(IGlobalSystemMediaTransportControlsSessionManagerWrapper newSessionManager)
         {
@@ -144,7 +207,7 @@ namespace WindowsAudioSource
         {
             if (Equals(newCurrentSession, _currentSession))
             {
-                _logger.Debug("Ignoring current session changed event: New session is already the current session");
+                _logger?.Debug("Ignoring current session changed event: New session is already the current session");
                 return;
             }
 
@@ -154,7 +217,7 @@ namespace WindowsAudioSource
             var newSessionPlaybackType = newCurrentSession?.GetPlaybackInfo()?.PlaybackType;
             if (newSessionPlaybackType != null && !SupportedPlaybackTypes.Contains(newSessionPlaybackType))
             {
-                _logger.Debug($"Ignoring current session changed event: New session is not of a supported playback type. PlaybackType='{newSessionPlaybackType}'; SupportedPlaybackTypes='{String.Join(",", SupportedPlaybackTypes)}'");
+                _logger?.Debug($"Ignoring current session changed event: New session is not of a supported playback type. PlaybackType='{newSessionPlaybackType}'; SupportedPlaybackTypes='{String.Join(",", SupportedPlaybackTypes)}'");
                 return;
             }
 
@@ -162,7 +225,7 @@ namespace WindowsAudioSource
             var newSessionSourceAppUserModelId = newCurrentSession?.SourceAppUserModelId;
             if (newSessionSourceAppUserModelId != null && _disallowedAppUserModelIds.Contains(newSessionSourceAppUserModelId))
             {
-                _logger.Debug($"Ignoring current session changed event: New session source is disallowed. SourceAppUserModelId='{newSessionSourceAppUserModelId}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'");
+                _logger?.Debug($"Ignoring current session changed event: New session source is disallowed. SourceAppUserModelId='{newSessionSourceAppUserModelId}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'");
                 return;
             }
 
@@ -177,6 +240,15 @@ namespace WindowsAudioSource
             // Swap the sessions
             _currentSession = newCurrentSession;
             CurrentSessionSource = _currentSession?.SourceAppUserModelId ?? string.Empty;
+            CurrentSessionType = newSessionPlaybackType?.ToString() ?? string.Empty;
+            CurrentSessionPlayPauseCapability = _currentSession.TryGetIsPlayPauseCapable(out var isPlayPauseCapable) ? isPlayPauseCapable.ToString() : string.Empty;
+            CurrentSessionNextPreviousCapability = _currentSession.TryGetIsNextPreviousCapable(out var isNextPreviousCapable) ? isNextPreviousCapable.ToString() : string.Empty;
+            CurrentSessionPlaybackPositionCapability = _currentSession.TryGetIsPlaybackPositionCapable(out var isPlaybackPositionCapable) ? isPlaybackPositionCapable.ToString() : string.Empty;
+
+            // Reset everything before setting up the new session
+            ResetPlaybackInfo();
+            ResetTrackInfo();
+            ResetTrackProgress();
 
             // Setup the new session
             if (_currentSession != null)
@@ -195,7 +267,7 @@ namespace WindowsAudioSource
             }
             else
             {
-                _logger.Debug("New session is null, resetting media info and playback state");
+                _logger?.Debug("New session is null, resetting media info and playback state");
 
                 // If there is no new session, reset everything
                 ResetPlaybackInfo();
@@ -209,7 +281,7 @@ namespace WindowsAudioSource
         {
             if (sender == null)
             {
-                _logger.Warn("Ignoring current session changed event: Sender is null");
+                _logger?.Warn("Ignoring current session changed event: Sender is null");
                 return;
             }
 
@@ -220,25 +292,25 @@ namespace WindowsAudioSource
         {
             if (sender == null)
             {
-                _logger.Warn("Ignoring session changed event: Sender is null");
+                _logger?.Warn("Ignoring session changed event: Sender is null");
                 return;
             }
 
             // TODO: do we actually want this check here?
             if (Equals(sender.GetCurrentSession(), _currentSession))
             {
-                _logger.Debug("Ignoring session changed event: Current session has not changed");
+                _logger?.Debug("Ignoring session changed event: Current session has not changed");
                 return;
             }
 
             var currentSessions = sender.GetSessions();
             if (!ShouldCheckForBetterSession(currentSessions, out var checkForBetterSessionReason))
             {
-                _logger.Warn("Ignoring session changed event: Current session is still the most likely best session");
+                _logger?.Warn("Ignoring session changed event: Current session is still the most likely best session");
                 return;
             }
 
-            _logger.Debug($"Checking for better session: {checkForBetterSessionReason}");
+            _logger?.Debug($"Checking for better session: {checkForBetterSessionReason}");
 
             // TODO: Restore this
             // Only attempt updating the session if our current session is no longer present
@@ -253,11 +325,11 @@ namespace WindowsAudioSource
             var newSession = GetNextBestSession(currentSessions);
             if (newSession == null)
             {
-                _logger.Debug("No valid session found, resetting media info and playback state");
+                _logger?.Debug("No valid session found, resetting media info and playback state");
             }
             else if (Equals(newSession, _currentSession))
             {
-                _logger.Debug("No better session found, keeping current session");
+                _logger?.Debug("No better session found, keeping current session");
                 return;
             }
             else
@@ -270,7 +342,7 @@ namespace WindowsAudioSource
                 }
 
                 var newPlaybackInfo = newSession.GetPlaybackInfo();
-                _logger.Debug($"Better session found: NewPlaybackType='{newPlaybackInfo.PlaybackType}'; NewPlaybackStatus='{newPlaybackInfo.PlaybackStatus}'; NewAppId='{newSession.SourceAppUserModelId}'; {oldSessionLogInfo}");
+                _logger?.Debug($"Better session found: NewPlaybackType='{newPlaybackInfo.PlaybackType}'; NewPlaybackStatus='{newPlaybackInfo.PlaybackStatus}'; NewAppId='{newSession.SourceAppUserModelId}'; {oldSessionLogInfo}");
             }
 
             SetCurrentSession(newSession);
@@ -343,7 +415,7 @@ namespace WindowsAudioSource
             }
             catch (Exception e)
             {
-                _logger.Error(e);
+                _logger?.Error(e);
             }
 
             return null;
@@ -354,13 +426,13 @@ namespace WindowsAudioSource
         {
             if (sender == null)
             {
-                _logger.Warn("Ignoring playback info changed event: Sender is null");
+                _logger?.Warn("Ignoring playback info changed event: Sender is null");
                 return;
             }
 
             if (!Equals(sender,_currentSession))
             {
-                _logger.Warn("Ignoring playback info changed event: Sender is not the current session");
+                _logger?.Warn("Ignoring playback info changed event: Sender is not the current session");
                 return;
             }
 
@@ -392,7 +464,7 @@ namespace WindowsAudioSource
             }
             catch (Exception e)
             {
-                _logger.Error(e);
+                _logger?.Error(e);
             }
         }
 
@@ -400,13 +472,13 @@ namespace WindowsAudioSource
         {
             if (sender == null)
             {
-                _logger.Warn("Ignoring track progress changed event: Sender is null");
+                _logger?.Warn("Ignoring track progress changed event: Sender is null");
                 return;
             }
 
             if (!Equals(sender, _currentSession))
             {
-                _logger.Warn("Ignoring track progress changed event: Sender is not the current session");
+                _logger?.Warn("Ignoring track progress changed event: Sender is not the current session");
                 return;
             }
 
@@ -415,7 +487,12 @@ namespace WindowsAudioSource
             // session is first initiated.
             if (!_currentSession.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
             {
-                _logger.Warn("Ignoring track progress changed event: Current session does not support setting playback position");
+                _logger?.Warn("Ignoring track progress changed event: Current session does not support setting playback position");
+
+                // Ensure all subscribers know that track progress has not changed
+                // TODO: Is this actually needed if track length is unset?
+                _trackProgress = TimeSpan.Zero;
+                LogEventInvocationIfFailed(TrackProgressChanged, this, _trackProgress);
                 return;
             }
 
@@ -431,7 +508,7 @@ namespace WindowsAudioSource
             }
             catch (Exception e)
             {
-                _logger.Error(e);
+                _logger?.Error(e);
             }
         }
 
@@ -439,13 +516,13 @@ namespace WindowsAudioSource
         {
             if (sender == null)
             {
-                _logger.Warn("Ignoring track info changed event: Sender is null");
+                _logger?.Warn("Ignoring track info changed event: Sender is null");
                 return;
             }
 
             if (!Equals(sender, _currentSession))
             {
-                _logger.Warn("Ignoring track info changed event: Sender is not the current session");
+                _logger?.Warn("Ignoring track info changed event: Sender is not the current session");
                 return;
             }
 
@@ -455,7 +532,19 @@ namespace WindowsAudioSource
 
                 // Convert media properties to event args to update track info.
                 var trackInfoChangedArgs = await mediaProperties.ToTrackInfoChangedEventArgsAsync(includeAlbumArt: true, _logger);
-                trackInfoChangedArgs.TrackLength = sender.GetTimelineProperties().EndTime.Duration();
+
+                // Only set the track length for sessions that support setting the playback position.
+                // This prevents the user from being able to change the track position when it's not supported.
+                if (_currentSession.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
+                {
+                    trackInfoChangedArgs.TrackLength = sender.GetTimelineProperties().EndTime.Duration();
+                }
+                else
+                {
+                    _logger?.Warn("Ignoring track length: Current session does not support setting playback position");
+                    trackInfoChangedArgs.TrackLength = TimeSpan.Zero;
+                }
+                
                 _currentTrackName = trackInfoChangedArgs.TrackName;
                 _currentArtist = trackInfoChangedArgs.Artist;
                 _currentAlbum = trackInfoChangedArgs.Album;
@@ -466,7 +555,7 @@ namespace WindowsAudioSource
             }
             catch (Exception e)
             {
-                _logger.Error(e);
+                _logger?.Error(e);
             }
         }
         #endregion Session Event Handler Delegates
@@ -481,7 +570,7 @@ namespace WindowsAudioSource
             //TrackInfoChanged.Invoke(this, emptyTrackInfoChangedArgs);
             LogEventInvocationIfFailed(TrackInfoChanged, this, emptyTrackInfoChangedArgs);
 
-            _albumArt.Dispose();
+            _albumArt?.Dispose();
             _albumArt = null;
         }
 
@@ -513,7 +602,7 @@ namespace WindowsAudioSource
             // For example, when media is already playing "IsPlayEnabled" is false and "IsPauseEnabled" is true, and the opposite is the case when media is paused.
             // Likewise, when there is no next track queued "IsNextEnabled" may be false.
             var sessionControls = session.GetPlaybackInfo().Controls;
-            _logger.Debug($"New session for: '{session.SourceAppUserModelId}'. Capabilities: " +
+            _logger?.Debug($"New session for: '{session.SourceAppUserModelId}'. Capabilities: " +
                 $"Play={sessionControls.IsPlayEnabled}; " +
                 $"Pause={sessionControls.IsPauseEnabled}; " +
                 $"Next={sessionControls.IsNextEnabled}; " +
@@ -527,7 +616,7 @@ namespace WindowsAudioSource
         {
             if (eventHandler == null)
             {
-                _logger.Error($"Event handler is null. ArgsType={typeof(T)}");
+                _logger?.Error($"Event handler is null. ArgsType={typeof(T)}");
             }
             else
             {
@@ -537,7 +626,7 @@ namespace WindowsAudioSource
                 }
                 catch (Exception e)
                 {
-                    _logger.Error(e);
+                    _logger?.Error(e);
                 }
             }
         }

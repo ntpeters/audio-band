@@ -8,16 +8,25 @@ namespace WindowsAudioSource
 {
     public class WindowsAudioSource : IAudioSource
     {
+        #region Brainstorming TODOs
         // TODO: Add setting to attempt choosing the "best" session, and default to the current session always
+        //       -> Maybe. Needs more thought. Only very specific cases make sense due to the way multi-session apps work
         // TODO: Add setting to auto pause previous session when sessions switch
-        // TODO: Add setting for disallowed apps
+        //       -> No, multi-session apps like browsers are too unreliable to ensure the correct session is being paused if the app is reporting a new active session
         // TODO: Add setting for locking to a specified app
+        //       -> No, tested and is too unreliable for multi-session apps like browsers, and no way to detect such apps
         // TODO: Add setting for *temporarily* locking to the current session (useful for browsers)
+        //       -> Nope, see above
         // TODO: Write seen AppUserModelIds to a rotating temp file, and add readonly setting showing its path
-        // TODO: Add readonly setting showing the current session AppUserModelId
+        //       -> Maybe, unclear if this would actually be useful to users
         // TODO: Switch this to a couple of flags for music, video, and unknown sources
-        [AudioSourceSetting("Current Session Source",
-            Description = "The AppUserModelId of the session currently being controlled.",
+        //       -> Just one flag for music, default to current session always
+        // TODO: Move impl of media controls into separte controls class
+        //       -> Seems unnecessary, their impl is minimal and refactoring wouldn't seem to benefit much other than division of responsibilities at the cost of increase complexity
+        #endregion Brainstorming TODOs
+
+        [AudioSourceSetting(SettingConstants.CurrentSessionSourceName,
+            Description = SettingConstants.CurrentSessionSourceDescription,
             Options = SettingOptions.ReadOnly)]
         public string CurrentSessionSource
         {
@@ -33,8 +42,25 @@ namespace WindowsAudioSource
             }
         }
 
-        [AudioSourceSetting("Session Source Disallow List",
-            Description = "Comma separated list of AppUserModelIds to block from being controlled.")]
+        [AudioSourceSetting(SettingConstants.CurrentSessionTypeName,
+            Description = SettingConstants.CurrentSessionTypeDescription,
+            Options = SettingOptions.ReadOnly)]
+        public string CurrentSessionType
+        {
+            // TODO: Fix this
+            get => _windowsAudioSessionManager?.CurrentSessionType ?? string.Empty;
+            set
+            {
+                if (_windowsAudioSessionManager == null)
+                {
+                    return;
+                }
+                _windowsAudioSessionManager.CurrentSessionType = value;
+            }
+        }
+
+        [AudioSourceSetting(SettingConstants.SessionSourceDisallowListName,
+            Description = SettingConstants.SessionSourceDisallowListDescription)]
         public string SessionSourceDisallowList
         {
             // TODO: Fix this
@@ -49,11 +75,56 @@ namespace WindowsAudioSource
             }
         }
 
-        // NOTE: ReadOnly only seems to work for strings?
-        [AudioSourceSetting("Smart Session Switching",
-            Description = "[EXPERIMENTAL] When enabled, the controlled session will be selected based on media type and play state.\n" +
-            "May not match the current session Windows is controlling.")]
-        public bool SmartSessionSwitchingEnabled { get; set; }
+        [AudioSourceSetting(SettingConstants.CurrentSessionPlayPauseCapabilityName,
+            Description = SettingConstants.CurrentSessionPlayPauseCapabilityDescription,
+            Options = SettingOptions.ReadOnly)]
+        public string CurrentSessionPlayPauseCapability
+        {
+            // TODO: Fix this
+            get => _windowsAudioSessionManager?.CurrentSessionPlayPauseCapability ?? string.Empty;
+            set
+            {
+                if (_windowsAudioSessionManager == null)
+                {
+                    return;
+                }
+                _windowsAudioSessionManager.CurrentSessionPlayPauseCapability = value;
+            }
+        }
+
+        [AudioSourceSetting(SettingConstants.CurrentSessionNextPreviousCapabilityName,
+            Description = SettingConstants.CurrentSessionNextPreviousCapabilityDescription,
+            Options = SettingOptions.ReadOnly)]
+        public string CurrentSessionNextPreviousCapability
+        {
+            // TODO: Fix this
+            get => _windowsAudioSessionManager?.CurrentSessionNextPreviousCapability ?? string.Empty;
+            set
+            {
+                if (_windowsAudioSessionManager == null)
+                {
+                    return;
+                }
+                _windowsAudioSessionManager.CurrentSessionNextPreviousCapability = value;
+            }
+        }
+
+        [AudioSourceSetting(SettingConstants.CurrentSessionPlaybackPositionCapabilityName,
+            Description = SettingConstants.CurrentSessionPlaybackPositionCapabilityDescription,
+            Options = SettingOptions.ReadOnly)]
+        public string CurrentSessionPlaybackPositionCapability
+        {
+            // TODO: Fix this
+            get => _windowsAudioSessionManager?.CurrentSessionPlaybackPositionCapability ?? string.Empty;
+            set
+            {
+                if (_windowsAudioSessionManager == null)
+                {
+                    return;
+                }
+                _windowsAudioSessionManager.CurrentSessionPlaybackPositionCapability = value;
+            }
+        }
 
         public string Name => "Windows";
 
@@ -67,27 +138,33 @@ namespace WindowsAudioSource
         public event EventHandler<bool> ShuffleChanged;
         public event EventHandler<RepeatMode> RepeatModeChanged;
 
-        private WindowsAudioSessionManager _windowsAudioSessionManager;
+        private readonly IWindowsAudioSessionManager _windowsAudioSessionManager;
+
+        public WindowsAudioSource()
+            : this(new WindowsAudioSessionManager(new GlobalSystemMediaTransportControlsSessionManagerWrapperFactory()))
+        {
+        }
+
+        public WindowsAudioSource(IWindowsAudioSessionManager windowsSessionManager)
+        {
+            _windowsAudioSessionManager = windowsSessionManager;
+        }
 
         public async Task ActivateAsync()
         {
-            // TODO: Fix this
-            _windowsAudioSessionManager = await WindowsAudioSessionManager.CreateInstance(Logger,
-                (windowsAudioSessionManager) =>
-                {
-                    windowsAudioSessionManager.SettingChanged += (sender, args) => SettingChanged?.Invoke(this, args);
-                    windowsAudioSessionManager.TrackInfoChanged += (sender, args) => TrackInfoChanged?.Invoke(this, args);
-                    windowsAudioSessionManager.IsPlayingChanged += (sender, args) => IsPlayingChanged?.Invoke(this, args);
-                    windowsAudioSessionManager.TrackProgressChanged += (sender, args) => TrackProgressChanged?.Invoke(this, args);
-                    windowsAudioSessionManager.VolumeChanged += (sender, args) => VolumeChanged?.Invoke(this, args);
-                    windowsAudioSessionManager.ShuffleChanged += (sender, args) => ShuffleChanged?.Invoke(this, args);
-                    windowsAudioSessionManager.RepeatModeChanged += (sender, args) => RepeatModeChanged?.Invoke(this, args);
-                });
+            // TODO: Clean this up
+            _windowsAudioSessionManager.SettingChanged += (sender, args) => SettingChanged?.Invoke(this, args);
+            _windowsAudioSessionManager.TrackInfoChanged += (sender, args) => TrackInfoChanged?.Invoke(this, args);
+            _windowsAudioSessionManager.IsPlayingChanged += (sender, args) => IsPlayingChanged?.Invoke(this, args);
+            _windowsAudioSessionManager.TrackProgressChanged += (sender, args) => TrackProgressChanged?.Invoke(this, args);
+            _windowsAudioSessionManager.VolumeChanged += (sender, args) => VolumeChanged?.Invoke(this, args);
+            _windowsAudioSessionManager.ShuffleChanged += (sender, args) => ShuffleChanged?.Invoke(this, args);
+            _windowsAudioSessionManager.RepeatModeChanged += (sender, args) => RepeatModeChanged?.Invoke(this, args);
+            await _windowsAudioSessionManager.InitializeAsync(Logger);
         }
 
         public Task DeactivateAsync()
         {
-            // TODO: Fix this
             _windowsAudioSessionManager.SettingChanged -= SettingChanged;
             _windowsAudioSessionManager.TrackInfoChanged -= TrackInfoChanged;
             _windowsAudioSessionManager.IsPlayingChanged -= IsPlayingChanged;
@@ -95,12 +172,11 @@ namespace WindowsAudioSource
             _windowsAudioSessionManager.VolumeChanged -= VolumeChanged;
             _windowsAudioSessionManager.ShuffleChanged -= ShuffleChanged;
             _windowsAudioSessionManager.RepeatModeChanged -= RepeatModeChanged;
-            _windowsAudioSessionManager = null;
+            _windowsAudioSessionManager.Unintialize();
 
             return Task.CompletedTask;
         }
 
-        // TODO: Move impl for these into separte controls class
         // TODO: Only attempt each control if it's supported by the current session
         public Task NextTrackAsync() => LogPlayerCommandIfFailed(() => _windowsAudioSessionManager.CurrentSession?.TrySkipNextAsync());
 
@@ -112,8 +188,25 @@ namespace WindowsAudioSource
 
         // This needs to be in ticks, per discussion here:
         // https://github.com/MicrosoftDocs/winrt-api/issues/1725
-        public Task SetPlaybackProgressAsync(TimeSpan newProgress) =>
-            LogPlayerCommandIfFailed(() => _windowsAudioSessionManager.CurrentSession?.TryChangePlaybackPositionAsync(newProgress.Ticks));
+        public Task SetPlaybackProgressAsync(TimeSpan newProgress)
+        {
+            var currentSession = _windowsAudioSessionManager.CurrentSession;
+
+            // Some apps (I'm looking at you Groove Music) don't support changing the playback postition, but
+            // still fire a timeline properties changed event containing the initial timeline state when the
+            // session is first initiated.
+            // TODO: Is this actually needed if track length is unset?
+            if (!currentSession?.GetPlaybackInfo()?.Controls.IsPlaybackPositionEnabled == true)
+            {
+                Logger.Warn("Ignoring set playback progress command: Current session does not support setting playback position");
+
+                // Revert UI progress change from the user
+                TrackProgressChanged.Invoke(this, TimeSpan.Zero);
+                return Task.CompletedTask;
+            }
+
+            return LogPlayerCommandIfFailed(() => _windowsAudioSessionManager.CurrentSession?.TryChangePlaybackPositionAsync(newProgress.Ticks));
+        }
 
         public Task SetRepeatModeAsync(RepeatMode newRepeatMode) =>
             LogPlayerCommandIfFailed(() => _windowsAudioSessionManager.CurrentSession?.TryChangeAutoRepeatModeAsync(newRepeatMode.ToMediaPlaybackAutoRepeatMode()));
