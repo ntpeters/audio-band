@@ -22,13 +22,6 @@ namespace WindowsAudioSource
                 GlobalSystemMediaTransportControlsSessionPlaybackStatus.Stopped
             };
 
-        // TODO: Add setting for this?
-        private static readonly ISet<MediaPlaybackType?> SupportedPlaybackTypes =
-            new HashSet<MediaPlaybackType?>
-            {
-                MediaPlaybackType.Music
-            };
-
         public string CurrentSessionSource
         {
             get => _currentSourceAppUserModlelId;
@@ -69,7 +62,7 @@ namespace WindowsAudioSource
             {
                 _logger?.Debug($"SessionSourceDisallowList Changed: {value}");
                 _disallowedAppUserModelIds = value.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
-                OnSessionsChanged(_sessionManager, null);
+                OnCurrentSessionRestrictionSettingChanged();
             }
         }
 
@@ -95,8 +88,9 @@ namespace WindowsAudioSource
 
             set
             {
+                _logger?.Debug($"MusicSessionsOnly Setting Changed: {value}");
                 _musicSessionsOnly = value;
-                _logger?.Warn("MusicSessionsOnly setting not yet implemented!");
+                OnCurrentSessionRestrictionSettingChanged();
             }
         }
 
@@ -165,10 +159,8 @@ namespace WindowsAudioSource
             // Register event handlers on the new current session
             if (_sessionManager != null)
             {
-                // TODO: Add setting to choose between the just system's current session or letting us try to make a better guess
                 _sessionManager.CurrentSessionChanged += OnCurrentSessionChanged;
-                // TODO: Restore this
-                //_sessionManager.SessionsChanged += OnSessionsChanged;
+                _sessionManager.SessionsChanged += OnSessionsChanged;
 
                 // Look for the new best session from the new session manager, and update everything with it
                 SetCurrentSession(_sessionManager.GetCurrentSession());
@@ -187,13 +179,11 @@ namespace WindowsAudioSource
                 return;
             }
 
-            // Only accept music sessions
-            // TODO: Add option to exclude certain apps?
-            // TODO: Add option to lock to a specific app?
+            // Check whether the new session playback type has been disallowed by the user
             var newSessionPlaybackType = newCurrentSession?.GetPlaybackInfo()?.PlaybackType;
-            if (newSessionPlaybackType != null && !SupportedPlaybackTypes.Contains(newSessionPlaybackType))
+            if (newSessionPlaybackType != null && _musicSessionsOnly && newSessionPlaybackType != MediaPlaybackType.Music)
             {
-                _logger?.Debug($"Ignoring current session changed event: New session is not of a supported playback type. PlaybackType='{newSessionPlaybackType}'; SupportedPlaybackTypes='{String.Join(",", SupportedPlaybackTypes)}'");
+                _logger?.Debug($"Ignoring current session changed event: New session playback type is not music, and user has enabled music sessions only. PlaybackType='{newSessionPlaybackType}'");
                 return;
             }
 
@@ -283,36 +273,23 @@ namespace WindowsAudioSource
                 return;
             }
 
-            // TODO: do we actually want this check here?
-            if (Equals(sender.GetCurrentSession(), _currentSession))
+            // Only try selecting a better session if the user has settings that restrict the current session
+            if (!_musicSessionsOnly && _disallowedAppUserModelIds.Count == 0)
             {
-                _logger?.Debug("Ignoring session changed event: Current session has not changed");
+                _logger?.Debug("Ignoring sessions changed event: User has not enabled any settings that override the current session");
                 return;
             }
 
             var currentSessions = sender.GetSessions();
-            if (!ShouldCheckForBetterSession(currentSessions, out var checkForBetterSessionReason))
-            {
-                _logger?.Warn("Ignoring session changed event: Current session is still the most likely best session");
-                return;
-            }
 
-            _logger?.Debug($"Checking for better session: {checkForBetterSessionReason}");
-
-            // TODO: Restore this
-            // Only attempt updating the session if our current session is no longer present
-            //if (currentSessions.Contains(_currentSession))
-            //{
-            //    Logger.Warn("Ignoring session changed event: Current session still exists");
-            //    return;
-            //}
+            _logger?.Debug($"Checking for better session based on user settings: MusicSessionsOnly='{_musicSessionsOnly}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'");
 
             // Try to find another session that might be one the user wants
-            // If no active music session is found, we'll just assume nothing is playing and reset everything
+            // If no valid session is found, we'll just assume nothing is playing and reset everything
             var newSession = GetNextBestSession(currentSessions);
             if (newSession == null)
             {
-                _logger?.Debug("No valid session found, resetting media info and playback state");
+                _logger?.Debug("No valid session found");
             }
             else if (Equals(newSession, _currentSession))
             {
@@ -336,66 +313,40 @@ namespace WindowsAudioSource
         }
         #endregion Session Manager Event Handler Delegates
 
-        private bool ShouldCheckForBetterSession(IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> sessions, out string reason)
-        {
-            if (_currentSession == null)
-            {
-                reason = "Current session is null";
-                return true;
-            }
-
-            var currentPlaybackInfo = _currentSession.GetPlaybackInfo();
-            if (!SupportedPlaybackTypes.Contains(currentPlaybackInfo.PlaybackType))
-            {
-                reason = $"Playback type is not supported - PlaybackType='{currentPlaybackInfo.PlaybackType}'; SupportedPlaybackTypes='{String.Join(",", SupportedPlaybackTypes)}'";
-                return true;
-            }
-
-            if (!SupportedPlaybackStatusesInPriorityOrder.Contains(currentPlaybackInfo.PlaybackStatus))
-            {
-                reason = $"Playback status is not supported - PlaybackStatus='{currentPlaybackInfo.PlaybackStatus}'; SupportedPlaybackStatuses='{String.Join(",", SupportedPlaybackStatusesInPriorityOrder)}'";
-                return true;
-            }
-
-            if (_disallowedAppUserModelIds.Contains(_currentSession.SourceAppUserModelId))
-            {
-                reason = $"Session source has been disallowed by the user - SourceAppUserModelId='{_currentSession.SourceAppUserModelId}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'";
-                return true;
-            }
-
-            if (!sessions.Contains(_currentSession))
-            {
-                reason = "Current session no longer exists";
-                return true;
-            }
-
-            reason = string.Empty;
-            return false;
-        }
-
         private IGlobalSystemMediaTransportControlsSessionWrapper GetNextBestSession(IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> sessions)
         {
             try
             {
-                // We only care about music sessions for sources that have not been disallowed by the user
-                var musicSessions = sessions.Where(session =>
-                SupportedPlaybackTypes.Contains(session.GetPlaybackInfo().PlaybackType) &&
-                !_disallowedAppUserModelIds.Contains(session.SourceAppUserModelId));
-
-                if (musicSessions.Count() == 1)
+                // We only care about sessions for sources that have not been disallowed by the user
+                var candidateSessions = sessions.Where(session =>
                 {
-                    return musicSessions.First();
+                    if (_disallowedAppUserModelIds.Contains(session.SourceAppUserModelId))
+                    {
+                        return false;
+                    }
+
+                    if (_musicSessionsOnly && session.GetPlaybackInfo().PlaybackType != MediaPlaybackType.Music)
+                    {
+                        return false;
+                    }
+
+                    return true;
+                });
+
+                if (candidateSessions.Count() == 1)
+                {
+                    return candidateSessions.First();
                 }
                 else
                 {
-                    // When there is more than one music session, select the one in the "most active" playback state
-                    var musicSessionsByPlaybackStatus = musicSessions.GroupBy(session => session.GetPlaybackInfo().PlaybackStatus);
+                    // When there is more than one session, select the one in the "most active" playback state
+                    var candidateSessionsByPlaybackStatus = candidateSessions.GroupBy(session => session.GetPlaybackInfo().PlaybackStatus);
                     foreach (var playbackStatus in SupportedPlaybackStatusesInPriorityOrder)
                     {
-                        var musicSession = musicSessionsByPlaybackStatus.FirstInGroupOrDefault(playbackStatus);
-                        if (musicSession != null)
+                        var candidateSession = candidateSessionsByPlaybackStatus.FirstInGroupOrDefault(playbackStatus);
+                        if (candidateSession != null)
                         {
-                            return musicSession;
+                            return candidateSession;
                         }
                     }
                 }
@@ -522,7 +473,7 @@ namespace WindowsAudioSource
 
                 // Only set the track length for sessions that support setting the playback position.
                 // This prevents the user from being able to change the track position when it's not supported.
-                if (_currentSession.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
+                if (sender.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
                 {
                     trackInfoChangedArgs.TrackLength = sender.GetTimelineProperties().EndTime.Duration();
                 }
@@ -581,6 +532,20 @@ namespace WindowsAudioSource
             _repeatMode = RepeatMode.Off;
             //RepeatModeChanged.Invoke(this, _repeatMode);
             LogEventInvocationIfFailed(RepeatModeChanged, this, _repeatMode);
+        }
+
+        private void OnCurrentSessionRestrictionSettingChanged()
+        {
+            if (_musicSessionsOnly || _disallowedAppUserModelIds.Count != 0)
+            {
+                _logger?.Info("Settings restricting the current session enabled. Looking for better session.");
+                OnSessionsChanged(_sessionManager, null);
+            }
+            else
+            {
+                _logger?.Info("All settings restricting the current session disabled. Defaulting to the current session.");
+                OnCurrentSessionChanged(_sessionManager, null);
+            }
         }
 
         private void LogSessionCapabilities(IGlobalSystemMediaTransportControlsSessionWrapper session)
