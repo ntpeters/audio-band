@@ -69,24 +69,28 @@ namespace WindowsAudioSource.Test
                 Times.Once);
         }
 
-        [Fact]
-        public async Task WindowsAudioSource_ActivateAsync()
+        [Theory]
+        [InlineData(true, 1)]
+        [InlineData(false, 0)]
+        public async Task WindowsAudioSource_ActivateAsync(bool isApiContractPresent, int expectedEventAddInvocations)
         {
             var mockLogger = new Mock<IAudioSourceLogger>();
+            _mockApiInformationProvider.Setup(mock => mock.IsApiContractPresent(It.IsAny<string>(), It.IsAny<ushort>()))
+                .Returns(isApiContractPresent);
             var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
             {
                 Logger = mockLogger.Object
             };
             await audioSource.ActivateAsync();
 
-            _mockSessionManager.Verify(mock => mock.InitializeAsync(It.Is<IAudioSourceLogger>(logger => logger == mockLogger.Object)), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.SettingChanged += It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.TrackInfoChanged += It.IsAny<EventHandler<TrackInfoChangedEventArgs>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.IsPlayingChanged += It.IsAny<EventHandler<bool>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.TrackProgressChanged += It.IsAny<EventHandler<TimeSpan>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.VolumeChanged += It.IsAny<EventHandler<float>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.ShuffleChanged += It.IsAny<EventHandler<bool>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.RepeatModeChanged += It.IsAny<EventHandler<RepeatMode>>(), Times.Once);
+            _mockSessionManager.Verify(mock => mock.InitializeAsync(It.Is<IAudioSourceLogger>(logger => logger == mockLogger.Object)), Times.Exactly(expectedEventAddInvocations));
+            _mockSessionManager.VerifyAdd(mock => mock.SettingChanged += It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Exactly(expectedEventAddInvocations));
+            _mockSessionManager.VerifyAdd(mock => mock.TrackInfoChanged += It.IsAny<EventHandler<TrackInfoChangedEventArgs>>(), Times.Exactly(expectedEventAddInvocations));
+            _mockSessionManager.VerifyAdd(mock => mock.IsPlayingChanged += It.IsAny<EventHandler<bool>>(), Times.Exactly(expectedEventAddInvocations));
+            _mockSessionManager.VerifyAdd(mock => mock.TrackProgressChanged += It.IsAny<EventHandler<TimeSpan>>(), Times.Exactly(expectedEventAddInvocations));
+            _mockSessionManager.VerifyAdd(mock => mock.VolumeChanged += It.IsAny<EventHandler<float>>(), Times.Exactly(expectedEventAddInvocations));
+            _mockSessionManager.VerifyAdd(mock => mock.ShuffleChanged += It.IsAny<EventHandler<bool>>(), Times.Exactly(expectedEventAddInvocations));
+            _mockSessionManager.VerifyAdd(mock => mock.RepeatModeChanged += It.IsAny<EventHandler<RepeatMode>>(), Times.Exactly(expectedEventAddInvocations));
 
             _mockSessionManager.Verify(mock => mock.Unintialize(), Times.Never);
             _mockSessionManager.VerifyRemove(mock => mock.SettingChanged -= It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Never);
@@ -96,6 +100,12 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.VerifyRemove(mock => mock.VolumeChanged -= It.IsAny<EventHandler<float>>(), Times.Never);
             _mockSessionManager.VerifyRemove(mock => mock.ShuffleChanged -= It.IsAny<EventHandler<bool>>(), Times.Never);
             _mockSessionManager.VerifyRemove(mock => mock.RepeatModeChanged -= It.IsAny<EventHandler<RepeatMode>>(), Times.Never);
+
+            _mockApiInformationProvider.Verify(
+                mock => mock.IsApiContractPresent(
+                    It.Is<string>(contractName => contractName == "Windows.Foundation.UniversalApiContract"),
+                    It.Is<ushort>(majorVersion => majorVersion == 7)),
+                Times.Once);
         }
 
         [Fact]

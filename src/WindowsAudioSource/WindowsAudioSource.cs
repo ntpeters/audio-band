@@ -159,12 +159,6 @@ namespace WindowsAudioSource
 
         public Task DeactivateAsync()
         {
-            if (!IsWindowsVersionSupported)
-            {
-                Logger.Warn("Windows audio source is only supported on Windows 10 version 1809 and later");
-                return Task.CompletedTask;
-            }
-
             _windowsAudioSessionManager.SettingChanged -= SettingChanged;
             _windowsAudioSessionManager.TrackInfoChanged -= TrackInfoChanged;
             _windowsAudioSessionManager.IsPlayingChanged -= IsPlayingChanged;
