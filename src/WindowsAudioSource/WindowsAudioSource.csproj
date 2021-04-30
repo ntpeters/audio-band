@@ -49,9 +49,11 @@
     <Compile Include="Extensions\TypedEventHandlerExtensions.cs" />
     <Compile Include="IWindowsAudioSessionManager.cs" />
     <Compile Include="SettingConstants.cs" />
+    <Compile Include="Wrappers\ApiInformationProvider.cs" />
     <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionManagerWrapperFactory.cs" />
     <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionWrapper.cs" />
     <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper.cs" />
+    <Compile Include="Wrappers\IApiInformationProvider.cs" />
     <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory.cs" />
     <Compile Include="Wrappers\IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper.cs" />
     <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper.cs" />

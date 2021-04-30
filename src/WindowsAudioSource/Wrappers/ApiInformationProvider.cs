@@ -2,6 +2,7 @@ using Windows.Foundation.Metadata;
 
 namespace WindowsAudioSource.Wrappers
 {
+    /// <inheritdoc cref="IApiInformationProvider"/>
     public class ApiInformationProvider : IApiInformationProvider
     {
         public bool IsTypePresent(string typeName) =>

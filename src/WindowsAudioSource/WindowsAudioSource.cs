@@ -3,6 +3,8 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Windows.Foundation;
+using Windows.Foundation.Metadata;
+using WindowsAudioSource.Wrappers;
 
 namespace WindowsAudioSource
 {
@@ -108,7 +110,7 @@ namespace WindowsAudioSource
             }
         }
 
-        public string Name => "Windows";
+        public string Name => IsWindowsVersionSupported ? "Windows" : "Windows (Not Supported)";
 
         public IAudioSourceLogger Logger { get; set; }
 
@@ -120,20 +122,30 @@ namespace WindowsAudioSource
         public event EventHandler<bool> ShuffleChanged;
         public event EventHandler<RepeatMode> RepeatModeChanged;
 
+        private bool IsWindowsVersionSupported => _apiInformationProvider.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 7);
+
         private readonly IWindowsAudioSessionManager _windowsAudioSessionManager;
+        private readonly IApiInformationProvider _apiInformationProvider;
 
         public WindowsAudioSource()
-            : this(new WindowsAudioSessionManager(new GlobalSystemMediaTransportControlsSessionManagerWrapperFactory()))
+            : this(new WindowsAudioSessionManager(new GlobalSystemMediaTransportControlsSessionManagerWrapperFactory()), new ApiInformationProvider())
         {
         }
 
-        public WindowsAudioSource(IWindowsAudioSessionManager windowsSessionManager)
+        public WindowsAudioSource(IWindowsAudioSessionManager windowsSessionManager, IApiInformationProvider apiInformationProvider)
         {
             _windowsAudioSessionManager = windowsSessionManager;
+            _apiInformationProvider = apiInformationProvider;
         }
 
         public async Task ActivateAsync()
         {
+            if (!IsWindowsVersionSupported)
+            {
+                Logger.Warn("Windows audio source is only supported on Windows 10 version 1809 and later");
+                return;
+            }
+
             // TODO: Clean this up
             _windowsAudioSessionManager.SettingChanged += (sender, args) => SettingChanged?.Invoke(this, args);
             _windowsAudioSessionManager.TrackInfoChanged += (sender, args) => TrackInfoChanged?.Invoke(this, args);
@@ -147,6 +159,12 @@ namespace WindowsAudioSource
 
         public Task DeactivateAsync()
         {
+            if (!IsWindowsVersionSupported)
+            {
+                Logger.Warn("Windows audio source is only supported on Windows 10 version 1809 and later");
+                return Task.CompletedTask;
+            }
+
             _windowsAudioSessionManager.SettingChanged -= SettingChanged;
             _windowsAudioSessionManager.TrackInfoChanged -= TrackInfoChanged;
             _windowsAudioSessionManager.IsPlayingChanged -= IsPlayingChanged;
