@@ -123,7 +123,6 @@ namespace WindowsAudioSource
         private Image _albumArt;
 
         // For settings
-        // TODO: Hookup these fields to settings
         private string _currentSourceAppUserModlelId = string.Empty;
         private string _currentSourceType = string.Empty;
         private IList<string> _disallowedAppUserModelIds = new List<string>();
@@ -381,14 +380,12 @@ namespace WindowsAudioSource
                 if (currentIsPlaying != _isPlaying)
                 {
                     _isPlaying = currentIsPlaying;
-                    //IsPlayingChanged?.Invoke(this, _isPlaying);
                     LogEventInvocationIfFailed(IsPlayingChanged, this, _isPlaying);
                 }
 
                 if (playbackInfo.IsShuffleActive != _shuffle)
                 {
                     _shuffle = playbackInfo.IsShuffleActive ?? false;
-                    //ShuffleChanged?.Invoke(this, _shuffle);
                     LogEventInvocationIfFailed(ShuffleChanged, this, _shuffle);
                 }
 
@@ -396,7 +393,6 @@ namespace WindowsAudioSource
                 if (currentRepeatMode != _repeatMode)
                 {
                     _repeatMode = currentRepeatMode;
-                    //RepeatModeChanged?.Invoke(this, _repeatMode);
                     LogEventInvocationIfFailed(RepeatModeChanged, this, _repeatMode);
                 }
             }
@@ -428,9 +424,7 @@ namespace WindowsAudioSource
                 _logger?.Warn("Ignoring track progress changed event: Current session does not support setting playback position");
 
                 // Ensure all subscribers know that track progress has not changed
-                // TODO: Is this actually needed if track length is unset?
-                _trackProgress = TimeSpan.Zero;
-                LogEventInvocationIfFailed(TrackProgressChanged, this, _trackProgress);
+                ResetTrackProgress();
                 return;
             }
 
@@ -440,7 +434,6 @@ namespace WindowsAudioSource
                 if (timelineProperties.Position != _trackProgress)
                 {
                     _trackProgress = timelineProperties.Position;
-                    //TrackProgressChanged?.Invoke(this, _trackProgress);
                     LogEventInvocationIfFailed(TrackProgressChanged, this, _trackProgress);
                 }
             }
@@ -488,7 +481,6 @@ namespace WindowsAudioSource
                 _currentAlbum = trackInfoChangedArgs.Album;
                 _albumArt = trackInfoChangedArgs.AlbumArt;
 
-                //TrackInfoChanged.Invoke(this, trackInfoChangedArgs);
                 LogEventInvocationIfFailed(TrackInfoChanged, this, trackInfoChangedArgs);
             }
             catch (Exception e)
@@ -505,7 +497,6 @@ namespace WindowsAudioSource
             _currentAlbum = null;
             var emptyTrackInfoChangedArgs = new TrackInfoChangedEventArgs();
             emptyTrackInfoChangedArgs.AlbumArt = null;  // Must be null to ensure we reset to the placeholder art
-            //TrackInfoChanged.Invoke(this, emptyTrackInfoChangedArgs);
             LogEventInvocationIfFailed(TrackInfoChanged, this, emptyTrackInfoChangedArgs);
 
             _albumArt?.Dispose();
@@ -515,22 +506,18 @@ namespace WindowsAudioSource
         private void ResetTrackProgress()
         {
             _trackProgress = TimeSpan.Zero;
-            //TrackProgressChanged.Invoke(this, _trackProgress);
             LogEventInvocationIfFailed(TrackProgressChanged, this, _trackProgress);
         }
 
         private void ResetPlaybackInfo()
         {
             _isPlaying = false;
-            //IsPlayingChanged.Invoke(this, _isPlaying);
             LogEventInvocationIfFailed(IsPlayingChanged, this, _isPlaying);
 
             _shuffle = false;
-            //ShuffleChanged.Invoke(this, _shuffle);
             LogEventInvocationIfFailed(ShuffleChanged, this, _shuffle);
 
             _repeatMode = RepeatMode.Off;
-            //RepeatModeChanged.Invoke(this, _repeatMode);
             LogEventInvocationIfFailed(RepeatModeChanged, this, _repeatMode);
         }
 
