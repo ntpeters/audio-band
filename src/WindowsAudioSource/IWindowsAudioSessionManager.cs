@@ -10,9 +10,8 @@ namespace WindowsAudioSource
         string CurrentSessionSource { get; set; }
         string CurrentSessionType { get; set; }
         string SessionSourceDisallowList { get; set; }
-        string CurrentSessionPlayPauseCapability { get; set; }
-        string CurrentSessionNextPreviousCapability { get; set; }
-        string CurrentSessionPlaybackPositionCapability { get; set; }
+        string CurrentSessionCapabilities { get; set; }
+        bool MusicSessionsOnly { get; set; }
         IGlobalSystemMediaTransportControlsSessionWrapper CurrentSession { get; }
 
         event EventHandler<SettingChangedEventArgs> SettingChanged;

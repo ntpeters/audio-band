@@ -40,6 +40,30 @@ namespace WindowsAudioSource.Extensions
             return false;
         }
 
+        public static bool TryGetIsShuffleCapable(this IGlobalSystemMediaTransportControlsSessionWrapper session, out bool isCapable)
+        {
+            if (session.TryGetControls(out var controls))
+            {
+                isCapable = controls.IsShuffleEnabled;
+                return true;
+            }
+
+            isCapable = false;
+            return false;
+        }
+
+        public static bool TryGetIsRepeatCapable(this IGlobalSystemMediaTransportControlsSessionWrapper session, out bool isCapable)
+        {
+            if (session.TryGetControls(out var controls))
+            {
+                isCapable = controls.IsRepeatEnabled;
+                return true;
+            }
+
+            isCapable = false;
+            return false;
+        }
+
         private static bool TryGetControls(this IGlobalSystemMediaTransportControlsSessionWrapper session, out IGlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper controls)
         {
             controls = session?.GetPlaybackInfo()?.Controls;

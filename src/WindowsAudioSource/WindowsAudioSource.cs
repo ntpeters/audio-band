@@ -75,54 +75,36 @@ namespace WindowsAudioSource
             }
         }
 
-        [AudioSourceSetting(SettingConstants.CurrentSessionPlayPauseCapabilityName,
-            Description = SettingConstants.CurrentSessionPlayPauseCapabilityDescription,
-            Options = SettingOptions.ReadOnly)]
-        public string CurrentSessionPlayPauseCapability
+        [AudioSourceSetting(SettingConstants.MusicSessionsOnlyName,
+            Description = SettingConstants.MusicSessionsOnlyDescription)]
+        public bool MusicSessionsOnly
         {
             // TODO: Fix this
-            get => _windowsAudioSessionManager?.CurrentSessionPlayPauseCapability ?? string.Empty;
+            get => _windowsAudioSessionManager?.MusicSessionsOnly ?? false;
             set
             {
                 if (_windowsAudioSessionManager == null)
                 {
                     return;
                 }
-                _windowsAudioSessionManager.CurrentSessionPlayPauseCapability = value;
+                _windowsAudioSessionManager.MusicSessionsOnly = value;
             }
         }
 
-        [AudioSourceSetting(SettingConstants.CurrentSessionNextPreviousCapabilityName,
-            Description = SettingConstants.CurrentSessionNextPreviousCapabilityDescription,
+        [AudioSourceSetting(SettingConstants.CurrentSessionCapabilitiesName,
+            Description = SettingConstants.CurrentSessionCapabilitiesDescription,
             Options = SettingOptions.ReadOnly)]
-        public string CurrentSessionNextPreviousCapability
+        public string CurrentSessionCapabilities
         {
             // TODO: Fix this
-            get => _windowsAudioSessionManager?.CurrentSessionNextPreviousCapability ?? string.Empty;
+            get => _windowsAudioSessionManager?.CurrentSessionCapabilities ?? string.Empty;
             set
             {
                 if (_windowsAudioSessionManager == null)
                 {
                     return;
                 }
-                _windowsAudioSessionManager.CurrentSessionNextPreviousCapability = value;
-            }
-        }
-
-        [AudioSourceSetting(SettingConstants.CurrentSessionPlaybackPositionCapabilityName,
-            Description = SettingConstants.CurrentSessionPlaybackPositionCapabilityDescription,
-            Options = SettingOptions.ReadOnly)]
-        public string CurrentSessionPlaybackPositionCapability
-        {
-            // TODO: Fix this
-            get => _windowsAudioSessionManager?.CurrentSessionPlaybackPositionCapability ?? string.Empty;
-            set
-            {
-                if (_windowsAudioSessionManager == null)
-                {
-                    return;
-                }
-                _windowsAudioSessionManager.CurrentSessionPlaybackPositionCapability = value;
+                _windowsAudioSessionManager.CurrentSessionCapabilities = value;
             }
         }
 

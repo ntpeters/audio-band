@@ -41,7 +41,6 @@ namespace WindowsAudioSource
                 }
 
                 _currentSourceAppUserModlelId = value;
-                //SettingChanged?.Invoke(this, new SettingChangedEventArgs("Current Session Source"));
                 LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionSourceName));
             }
         }
@@ -58,7 +57,6 @@ namespace WindowsAudioSource
                 }
 
                 _currentSourceType = value;
-                //SettingChanged?.Invoke(this, new SettingChangedEventArgs("Current Session Source"));
                 LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionTypeName));
             }
         }
@@ -75,51 +73,30 @@ namespace WindowsAudioSource
             }
         }
 
-        public string CurrentSessionPlayPauseCapability
+        public string CurrentSessionCapabilities
         {
-            get => _currentSourcePlayPauseCapability;
+            get => _currentSourceCapabilities;
 
             set
             {
-                if (value == _currentSourcePlayPauseCapability)
+                if (value == _currentSourceCapabilities)
                 {
                     return;
                 }
 
-                _currentSourcePlayPauseCapability = value;
-                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionPlayPauseCapabilityName));
+                _currentSourceCapabilities = value;
+                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionCapabilitiesName));
             }
         }
 
-        public string CurrentSessionNextPreviousCapability
+        public bool MusicSessionsOnly
         {
-            get => _currentSourceNextPreviousCapability;
+            get => _musicSessionsOnly;
 
             set
             {
-                if (value == _currentSourceNextPreviousCapability)
-                {
-                    return;
-                }
-
-                _currentSourceNextPreviousCapability = value;
-                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionNextPreviousCapabilityName));
-            }
-        }
-
-        public string CurrentSessionPlaybackPositionCapability
-        {
-            get => _currentSourcePlaybackPositionCapability;
-
-            set
-            {
-                if (value == _currentSourcePlaybackPositionCapability)
-                {
-                    return;
-                }
-
-                _currentSourcePlaybackPositionCapability = value;
-                LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionPlaybackPositionCapabilityName));
+                _musicSessionsOnly = value;
+                _logger?.Warn("MusicSessionsOnly setting not yet implemented!");
             }
         }
 
@@ -156,9 +133,8 @@ namespace WindowsAudioSource
         private string _currentSourceAppUserModlelId = string.Empty;
         private string _currentSourceType = string.Empty;
         private IList<string> _disallowedAppUserModelIds = new List<string>();
-        private string _currentSourcePlayPauseCapability = string.Empty;
-        private string _currentSourceNextPreviousCapability = string.Empty;
-        private string _currentSourcePlaybackPositionCapability = string.Empty;
+        private string _currentSourceCapabilities = string.Empty;
+        private bool _musicSessionsOnly = false;
 
         public WindowsAudioSessionManager(IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory windowsAudioSessionManagerFactory)
         {
@@ -241,9 +217,20 @@ namespace WindowsAudioSource
             _currentSession = newCurrentSession;
             CurrentSessionSource = _currentSession?.SourceAppUserModelId ?? string.Empty;
             CurrentSessionType = newSessionPlaybackType?.ToString() ?? string.Empty;
-            CurrentSessionPlayPauseCapability = _currentSession.TryGetIsPlayPauseCapable(out var isPlayPauseCapable) ? isPlayPauseCapable.ToString() : string.Empty;
-            CurrentSessionNextPreviousCapability = _currentSession.TryGetIsNextPreviousCapable(out var isNextPreviousCapable) ? isNextPreviousCapable.ToString() : string.Empty;
-            CurrentSessionPlaybackPositionCapability = _currentSession.TryGetIsPlaybackPositionCapable(out var isPlaybackPositionCapable) ? isPlaybackPositionCapable.ToString() : string.Empty;
+
+            if (_currentSession == null)
+            {
+                CurrentSessionCapabilities = string.Empty;
+            }
+            else
+            {
+                _currentSession.TryGetIsPlayPauseCapable(out var isPlayPauseCapable);
+                _currentSession.TryGetIsNextPreviousCapable(out var isNextPreviousCapable);
+                _currentSession.TryGetIsPlaybackPositionCapable(out var isPlaybackPositionCapable);
+                _currentSession.TryGetIsShuffleCapable(out var isShuffleCapable);
+                _currentSession.TryGetIsRepeatCapable(out var isRepeatCapable);
+                CurrentSessionCapabilities = $"Play/Pause={isPlayPauseCapable}; Next/Previous={isNextPreviousCapable}; Playback Position={isPlaybackPositionCapable}; Shuffle={isShuffleCapable}; Repeat={isRepeatCapable}";
+            }
 
             // Reset everything before setting up the new session
             ResetPlaybackInfo();
