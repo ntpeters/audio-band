@@ -7,7 +7,7 @@ namespace WindowsAudioSource.Wrappers
     /// <remarks>
     /// This is a thin wrapper around <see cref="GlobalSystemMediaTransportControlsSessionPlaybackInfo"/> to support mocking.
     /// </remarks>
-    public interface IGlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper : IWrapper<GlobalSystemMediaTransportControlsSessionPlaybackInfo>
+    public interface IGlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper : IInstanceWrapper<GlobalSystemMediaTransportControlsSessionPlaybackInfo>
     {
         /// <inheritdoc cref="GlobalSystemMediaTransportControlsSessionPlaybackInfo.AutoRepeatMode"/>
         MediaPlaybackAutoRepeatMode? AutoRepeatMode { get; }

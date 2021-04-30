@@ -6,7 +6,7 @@ namespace WindowsAudioSource.Wrappers
     /// <remarks>
     /// This is a thin wrapper around <see cref="GlobalSystemMediaTransportControlsSessionPlaybackControls"/> to support mocking.
     /// </remarks>
-    public interface IGlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper : IWrapper<GlobalSystemMediaTransportControlsSessionPlaybackControls>
+    public interface IGlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper : IInstanceWrapper<GlobalSystemMediaTransportControlsSessionPlaybackControls>
     {
         /// <inheritdoc cref="GlobalSystemMediaTransportControlsSessionPlaybackControls.IsChannelDownEnabled"/>
         bool IsChannelDownEnabled { get; }

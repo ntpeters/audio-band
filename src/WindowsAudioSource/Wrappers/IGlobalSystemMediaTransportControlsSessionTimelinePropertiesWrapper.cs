@@ -7,7 +7,7 @@ namespace WindowsAudioSource.Wrappers
     /// <remarks>
     /// This is a thin wrapper around <see cref="GlobalSystemMediaTransportControlsSessionTimelineProperties"/> to support mocking.
     /// </remarks>
-    public interface IGlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper : IWrapper<GlobalSystemMediaTransportControlsSessionTimelineProperties>
+    public interface IGlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper : IInstanceWrapper<GlobalSystemMediaTransportControlsSessionTimelineProperties>
     {
         /// <inheritdoc cref="GlobalSystemMediaTransportControlsSessionTimelineProperties.EndTime"/>
         TimeSpan EndTime { get; }

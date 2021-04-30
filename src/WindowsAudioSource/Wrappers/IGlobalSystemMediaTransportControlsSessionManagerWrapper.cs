@@ -9,7 +9,7 @@ namespace WindowsAudioSource.Wrappers
     /// <remarks>
     /// This is a thin wrapper around <see cref="GlobalSystemMediaTransportControlsSessionManager"/> to support mocking.
     /// </remarks>
-    public interface IGlobalSystemMediaTransportControlsSessionManagerWrapper : IWrapper<GlobalSystemMediaTransportControlsSessionManager>, IEquatable<IGlobalSystemMediaTransportControlsSessionManagerWrapper>
+    public interface IGlobalSystemMediaTransportControlsSessionManagerWrapper : IInstanceWrapper<GlobalSystemMediaTransportControlsSessionManager>, IEquatable<IGlobalSystemMediaTransportControlsSessionManagerWrapper>
     {
         /// <inheritdoc cref="GlobalSystemMediaTransportControlsSessionManager.CurrentSessionChanged"/>
         event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionManagerWrapper, CurrentSessionChangedEventArgs> CurrentSessionChanged;

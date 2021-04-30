@@ -9,7 +9,7 @@ namespace WindowsAudioSource.Wrappers
     /// <remarks>
     /// This is a thin wrapper around <see cref="GlobalSystemMediaTransportControlsSessionMediaProperties"/> to support mocking.
     /// </remarks>
-    public interface IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper : IWrapper<GlobalSystemMediaTransportControlsSessionMediaProperties>
+    public interface IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper : IInstanceWrapper<GlobalSystemMediaTransportControlsSessionMediaProperties>
     {
         /// <inheritdoc cref="GlobalSystemMediaTransportControlsSessionMediaProperties.AlbumArtist"/>
         string AlbumArtist { get; }
