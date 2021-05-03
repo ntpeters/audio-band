@@ -7,7 +7,7 @@ namespace WindowsAudioSource.Wrappers
     /// Factory that produces an instance of <see cref="IGlobalSystemMediaTransportControlsSessionManagerWrapper"/>.
     /// </summary>
     /// <remarks>
-    /// This is a thin wrapper around the <see cref="GlobalSystemMediaTransportControlsSessionManager.RequestAsync"/> to support mocking, since that method is static.
+    /// This is a thin wrapper around <see cref="GlobalSystemMediaTransportControlsSessionManager.RequestAsync"/> to support mocking, since that method is static.
     /// </remarks>
     public interface IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory
     {

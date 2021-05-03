@@ -64,18 +64,26 @@ namespace WindowsAudioSource
         }
         #endregion Public Events
 
+        #region Public Properties
         public GlobalSystemMediaTransportControlsSessionManager WrappedInstance => _sessionManager;
+        #endregion Public Properties
 
+        #region Internal Events
         // Internal events used to allow lazy subscribing to the session manager events only when needed
         private event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionManagerWrapper, CurrentSessionChangedEventArgs> CurrentSessionChangedInternal;
         private event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionManagerWrapper, SessionsChangedEventArgs> SessionsChangedInternal;
+        #endregion Internal Events
 
+        #region Instance Variables
         private GlobalSystemMediaTransportControlsSessionManager _sessionManager;
+        #endregion Instance Variables
 
+        #region Constructors
         public GlobalSystemMediaTransportControlsSessionManagerWrapper(GlobalSystemMediaTransportControlsSessionManager sessionManager)
         {
             _sessionManager = sessionManager ?? throw new ArgumentNullException(nameof(sessionManager));
         }
+        #endregion Constructors
 
         #region Wrapped Methods
         public IGlobalSystemMediaTransportControlsSessionWrapper GetCurrentSession()

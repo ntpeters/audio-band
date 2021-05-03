@@ -88,20 +88,28 @@ namespace WindowsAudioSource.Wrappers
         }
         #endregion Public Events
 
+        #region Public Properties
         public string SourceAppUserModelId => _session.SourceAppUserModelId;
         public GlobalSystemMediaTransportControlsSession WrappedInstance => _session;
+        #endregion Public Properties
 
+        #region Internal Events
         // Internal events used to allow lazy subscribing to the session events only when needed
         private event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionWrapper, MediaPropertiesChangedEventArgs> MediaPropertiesChangedInternal;
         private event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionWrapper, PlaybackInfoChangedEventArgs> PlaybackInfoChangedInternal;
         private event TypedEventHandler<IGlobalSystemMediaTransportControlsSessionWrapper, TimelinePropertiesChangedEventArgs> TimelinePropertiesChangedInternal;
+        #endregion Internal Events
 
+        #region Instance Variables
         private GlobalSystemMediaTransportControlsSession _session;
+        #endregion Instance Variables
 
+        #region Constructors
         public GlobalSystemMediaTransportControlsSessionWrapper(GlobalSystemMediaTransportControlsSession session)
         {
             _session = session ?? throw new ArgumentNullException(nameof(session));
         }
+        #endregion Constructors
 
         #region Wrapped Methods
         public IGlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper GetPlaybackInfo()
