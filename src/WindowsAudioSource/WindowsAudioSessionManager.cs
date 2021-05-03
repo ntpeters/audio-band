@@ -13,6 +13,7 @@ namespace WindowsAudioSource
 {
     public class WindowsAudioSessionManager : IWindowsAudioSessionManager
     {
+        #region Constants
         private static readonly GlobalSystemMediaTransportControlsSessionPlaybackStatus[] SupportedPlaybackStatusesInPriorityOrder =
             new GlobalSystemMediaTransportControlsSessionPlaybackStatus[]
             {
@@ -21,7 +22,9 @@ namespace WindowsAudioSource
                 GlobalSystemMediaTransportControlsSessionPlaybackStatus.Changing,
                 GlobalSystemMediaTransportControlsSessionPlaybackStatus.Stopped
             };
+        #endregion Constants
 
+        #region Public Properties
         public string CurrentSessionSource
         {
             get => _currentSourceAppUserModlelId;
@@ -99,7 +102,9 @@ namespace WindowsAudioSource
             get => _currentSession;
             private set => _currentSession = value;
         }
+        #endregion Public Properties
 
+        #region Events
         // TODO: Change these to use native types for these APIs
         public event EventHandler<SettingChangedEventArgs> SettingChanged;
         public event EventHandler<TrackInfoChangedEventArgs> TrackInfoChanged;
@@ -108,7 +113,9 @@ namespace WindowsAudioSource
         public event EventHandler<float> VolumeChanged;
         public event EventHandler<bool> ShuffleChanged;
         public event EventHandler<RepeatMode> RepeatModeChanged;
+        #endregion Events
 
+        #region Instance Variables
         private readonly IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory _windowsAudioSessionManagerFactory;
         private IAudioSourceLogger _logger;
         private IGlobalSystemMediaTransportControlsSessionManagerWrapper _sessionManager;
@@ -128,7 +135,9 @@ namespace WindowsAudioSource
         private IList<string> _disallowedAppUserModelIds = new List<string>();
         private string _currentSourceCapabilities = string.Empty;
         private bool _musicSessionsOnly = false;
+        #endregion Instance Variables
 
+        #region Public Methods
         public WindowsAudioSessionManager(IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory windowsAudioSessionManagerFactory)
         {
             _windowsAudioSessionManagerFactory = windowsAudioSessionManagerFactory;
@@ -142,7 +151,9 @@ namespace WindowsAudioSource
         }
 
         public void Unintialize() => SetSessionManager(null);
+        #endregion Public Methods
 
+        #region Session Mangement
         private void SetSessionManager(IGlobalSystemMediaTransportControlsSessionManagerWrapper newSessionManager)
         {
             // Unregister event handlers from the old session manager
@@ -178,19 +189,11 @@ namespace WindowsAudioSource
                 return;
             }
 
-            // Check whether the new session playback type has been disallowed by the user
+            // Check whether the new session has been disallowed by the user
             var newSessionPlaybackType = newCurrentSession?.GetPlaybackInfo()?.PlaybackType;
-            if (newSessionPlaybackType != null && _musicSessionsOnly && newSessionPlaybackType != MediaPlaybackType.Music)
+            if (!IsSessionAllowed(newCurrentSession, out var disallowMessage))
             {
-                _logger?.Debug($"Ignoring current session changed event: New session playback type is not music, and user has enabled music sessions only. PlaybackType='{newSessionPlaybackType}'");
-                return;
-            }
-
-            // Check whether the new session source has been disallowed by the user
-            var newSessionSourceAppUserModelId = newCurrentSession?.SourceAppUserModelId;
-            if (newSessionSourceAppUserModelId != null && _disallowedAppUserModelIds.Contains(newSessionSourceAppUserModelId))
-            {
-                _logger?.Debug($"Ignoring current session changed event: New session source is disallowed. SourceAppUserModelId='{newSessionSourceAppUserModelId}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'");
+                _logger?.Debug($"Ignoring current session changed event: {disallowMessage}");
                 return;
             }
 
@@ -251,6 +254,7 @@ namespace WindowsAudioSource
                 ResetTrackProgress();
             }
         }
+        #endregion Session Mangement
 
         #region Session Manager Event Handler Delegates
         private void OnCurrentSessionChanged(IGlobalSystemMediaTransportControlsSessionManagerWrapper sender, CurrentSessionChangedEventArgs args)
@@ -273,10 +277,9 @@ namespace WindowsAudioSource
             }
 
             // Only try selecting a better session if the user has settings that restrict the current session
-            if (!_musicSessionsOnly && _disallowedAppUserModelIds.Count == 0)
+            if (IsSessionAllowed(_currentSession, out _))
             {
-                _logger?.Debug("Ignoring sessions changed event: User has not enabled any settings that override the current session");
-                return;
+                _logger?.Debug("Ignoring sessions changed event: Current session is still allowed based on user settings");
             }
 
             var currentSessions = sender.GetSessions();
@@ -311,52 +314,6 @@ namespace WindowsAudioSource
             SetCurrentSession(newSession);
         }
         #endregion Session Manager Event Handler Delegates
-
-        private IGlobalSystemMediaTransportControlsSessionWrapper GetNextBestSession(IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> sessions)
-        {
-            try
-            {
-                // We only care about sessions for sources that have not been disallowed by the user
-                var candidateSessions = sessions.Where(session =>
-                {
-                    if (_disallowedAppUserModelIds.Contains(session.SourceAppUserModelId))
-                    {
-                        return false;
-                    }
-
-                    if (_musicSessionsOnly && session.GetPlaybackInfo().PlaybackType != MediaPlaybackType.Music)
-                    {
-                        return false;
-                    }
-
-                    return true;
-                });
-
-                if (candidateSessions.Count() == 1)
-                {
-                    return candidateSessions.First();
-                }
-                else
-                {
-                    // When there is more than one session, select the one in the "most active" playback state
-                    var candidateSessionsByPlaybackStatus = candidateSessions.GroupBy(session => session.GetPlaybackInfo().PlaybackStatus);
-                    foreach (var playbackStatus in SupportedPlaybackStatusesInPriorityOrder)
-                    {
-                        var candidateSession = candidateSessionsByPlaybackStatus.FirstInGroupOrDefault(playbackStatus);
-                        if (candidateSession != null)
-                        {
-                            return candidateSession;
-                        }
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                _logger?.Error(e);
-            }
-
-            return null;
-        }
 
         #region Session Event Handler Delegates
         private void OnPlaybackInfoChanged(IGlobalSystemMediaTransportControlsSessionWrapper sender, PlaybackInfoChangedEventArgs args)
@@ -490,6 +447,40 @@ namespace WindowsAudioSource
         }
         #endregion Session Event Handler Delegates
 
+        #region Helpers
+        private IGlobalSystemMediaTransportControlsSessionWrapper GetNextBestSession(IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> sessions)
+        {
+            try
+            {
+                // We only care about sessions for sources that have not been disallowed by the user
+                var candidateSessions = sessions.Where(session => IsSessionAllowed(session, out _));
+
+                if (candidateSessions.Count() == 1)
+                {
+                    return candidateSessions.First();
+                }
+                else
+                {
+                    // When there is more than one session, select the one in the "most active" playback state
+                    var candidateSessionsByPlaybackStatus = candidateSessions.GroupBy(session => session.GetPlaybackInfo().PlaybackStatus);
+                    foreach (var playbackStatus in SupportedPlaybackStatusesInPriorityOrder)
+                    {
+                        var candidateSession = candidateSessionsByPlaybackStatus.FirstInGroupOrDefault(playbackStatus);
+                        if (candidateSession != null)
+                        {
+                            return candidateSession;
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                _logger?.Error(e);
+            }
+
+            return null;
+        }
+
         private void ResetTrackInfo()
         {
             _currentTrackName = null;
@@ -535,6 +526,28 @@ namespace WindowsAudioSource
             }
         }
 
+        private bool IsSessionAllowed(IGlobalSystemMediaTransportControlsSessionWrapper session, out string disallowMessage)
+        {
+            // Check whether the session playback type has been disallowed by the user
+            var sessionPlaybackType = session?.GetPlaybackInfo()?.PlaybackType;
+            if (sessionPlaybackType != null && _musicSessionsOnly && sessionPlaybackType != MediaPlaybackType.Music)
+            {
+                disallowMessage = $"Session playback type is not music, and user has enabled music sessions only. PlaybackType='{sessionPlaybackType}'";
+                return false;
+            }
+
+            // Check whether the session source has been disallowed by the user
+            var sessionSourceAppUserModelId = session?.SourceAppUserModelId;
+            if (sessionSourceAppUserModelId != null && _disallowedAppUserModelIds.Contains(sessionSourceAppUserModelId))
+            {
+                disallowMessage = $"Session source is disallowed by user setting. SourceAppUserModelId='{sessionSourceAppUserModelId}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'";
+                return false;
+            }
+
+            disallowMessage = string.Empty;
+            return true;
+        }
+
         private void LogSessionCapabilities(IGlobalSystemMediaTransportControlsSessionWrapper session)
         {
             // These capabilities can change based on the current session state.
@@ -569,5 +582,6 @@ namespace WindowsAudioSource
                 }
             }
         }
+        #endregion Helpers
     }
 }
