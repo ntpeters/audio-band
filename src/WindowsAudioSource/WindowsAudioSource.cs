@@ -3,7 +3,6 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Windows.Foundation;
-using Windows.Foundation.Metadata;
 using WindowsAudioSource.Wrappers;
 
 namespace WindowsAudioSource
@@ -27,10 +26,17 @@ namespace WindowsAudioSource
         //       -> Seems unnecessary, their impl is minimal and refactoring wouldn't seem to benefit much other than division of responsibilities at the cost of increase complexity
         #endregion Brainstorming TODOs
 
+        #region Settings
+        // TODO: Look into other options for controlling setting order in the UI
+        // Each of these setting properties has a letter prefix at the moment to control
+        // the order in which they are displayed to the user in the settings dialog.
+        // It appears that the settings in the UI are placed in lexical order
+        // based on the property names.
         [AudioSourceSetting(SettingConstants.CurrentSessionSourceName,
             Description = SettingConstants.CurrentSessionSourceDescription,
-            Options = SettingOptions.ReadOnly)]
-        public string CurrentSessionSource
+            Options = SettingOptions.ReadOnly,
+            Priority = 5)]
+        public string A_CurrentSessionSource
         {
             // TODO: Fix this
             get => _windowsAudioSessionManager?.CurrentSessionSource ?? string.Empty;
@@ -44,26 +50,10 @@ namespace WindowsAudioSource
             }
         }
 
-        [AudioSourceSetting(SettingConstants.CurrentSessionTypeName,
-            Description = SettingConstants.CurrentSessionTypeDescription,
-            Options = SettingOptions.ReadOnly)]
-        public string CurrentSessionType
-        {
-            // TODO: Fix this
-            get => _windowsAudioSessionManager?.CurrentSessionType ?? string.Empty;
-            set
-            {
-                if (_windowsAudioSessionManager == null)
-                {
-                    return;
-                }
-                _windowsAudioSessionManager.CurrentSessionType = value;
-            }
-        }
-
         [AudioSourceSetting(SettingConstants.SessionSourceDisallowListName,
-            Description = SettingConstants.SessionSourceDisallowListDescription)]
-        public string SessionSourceDisallowList
+            Description = SettingConstants.SessionSourceDisallowListDescription,
+            Priority = 4)]
+        public string B_SessionSourceDisallowList
         {
             // TODO: Fix this
             get => _windowsAudioSessionManager?.SessionSourceDisallowList ?? string.Empty;
@@ -77,9 +67,28 @@ namespace WindowsAudioSource
             }
         }
 
+        [AudioSourceSetting(SettingConstants.CurrentSessionTypeName,
+            Description = SettingConstants.CurrentSessionTypeDescription,
+            Options = SettingOptions.ReadOnly,
+            Priority = 3)]
+        public string C_CurrentSessionType
+        {
+            // TODO: Fix this
+            get => _windowsAudioSessionManager?.CurrentSessionType ?? string.Empty;
+            set
+            {
+                if (_windowsAudioSessionManager == null)
+                {
+                    return;
+                }
+                _windowsAudioSessionManager.CurrentSessionType = value;
+            }
+        }
+
         [AudioSourceSetting(SettingConstants.MusicSessionsOnlyName,
-            Description = SettingConstants.MusicSessionsOnlyDescription)]
-        public bool MusicSessionsOnly
+            Description = SettingConstants.MusicSessionsOnlyDescription,
+            Priority = 2)]
+        public bool D_MusicSessionsOnly
         {
             // TODO: Fix this
             get => _windowsAudioSessionManager?.MusicSessionsOnly ?? false;
@@ -95,8 +104,9 @@ namespace WindowsAudioSource
 
         [AudioSourceSetting(SettingConstants.CurrentSessionCapabilitiesName,
             Description = SettingConstants.CurrentSessionCapabilitiesDescription,
-            Options = SettingOptions.ReadOnly)]
-        public string CurrentSessionCapabilities
+            Options = SettingOptions.ReadOnly,
+            Priority = 1)]
+        public string E_CurrentSessionCapabilities
         {
             // TODO: Fix this
             get => _windowsAudioSessionManager?.CurrentSessionCapabilities ?? string.Empty;
@@ -109,11 +119,15 @@ namespace WindowsAudioSource
                 _windowsAudioSessionManager.CurrentSessionCapabilities = value;
             }
         }
+        #endregion Settings
 
+        #region Public Properties
         public string Name => IsWindowsVersionSupported ? "Windows" : "Windows (Not Supported)";
 
         public IAudioSourceLogger Logger { get; set; }
+        #endregion Public Properties
 
+        #region Events
         public event EventHandler<SettingChangedEventArgs> SettingChanged;
         public event EventHandler<TrackInfoChangedEventArgs> TrackInfoChanged;
         public event EventHandler<bool> IsPlayingChanged;
@@ -121,12 +135,18 @@ namespace WindowsAudioSource
         public event EventHandler<float> VolumeChanged;
         public event EventHandler<bool> ShuffleChanged;
         public event EventHandler<RepeatMode> RepeatModeChanged;
+        #endregion Events
 
+        #region Private Properties
         private bool IsWindowsVersionSupported => _apiInformationProvider.IsApiContractPresent("Windows.Foundation.UniversalApiContract", 7);
+        #endregion Private Properties
 
+        #region Instance Variables
         private readonly IWindowsAudioSessionManager _windowsAudioSessionManager;
         private readonly IApiInformationProvider _apiInformationProvider;
+        #endregion Instance Variables
 
+        #region Constructors
         public WindowsAudioSource()
             : this(new WindowsAudioSessionManager(new GlobalSystemMediaTransportControlsSessionManagerWrapperFactory()), new ApiInformationProvider())
         {
@@ -137,7 +157,9 @@ namespace WindowsAudioSource
             _windowsAudioSessionManager = windowsSessionManager;
             _apiInformationProvider = apiInformationProvider;
         }
+        #endregion Constructors
 
+        #region Public Methods
         public async Task ActivateAsync()
         {
             if (!IsWindowsVersionSupported)
@@ -212,7 +234,9 @@ namespace WindowsAudioSource
             Logger.Error("Volume Not Supported!");
             return Task.CompletedTask;
         }
+        #endregion Public Methods
 
+        #region Helpers
         private async Task LogPlayerCommandIfFailed(Func<IAsyncOperation<bool>> command, [CallerMemberName] string caller = null)
         {
             try
@@ -228,5 +252,6 @@ namespace WindowsAudioSource
                 Logger.Error(e);
             }
         }
+        #endregion Helpers
     }
 }
