@@ -3,6 +3,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Windows.Foundation;
+using WindowsAudioSource.Extensions;
 using WindowsAudioSource.Wrappers;
 
 namespace WindowsAudioSource

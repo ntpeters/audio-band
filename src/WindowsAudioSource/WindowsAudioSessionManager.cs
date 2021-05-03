@@ -419,7 +419,7 @@ namespace WindowsAudioSource
                 var mediaProperties = await sender.TryGetMediaPropertiesAsync();
 
                 // Convert media properties to event args to update track info.
-                var trackInfoChangedArgs = await mediaProperties.ToTrackInfoChangedEventArgsAsync(includeAlbumArt: true, _logger);
+                var trackInfoChangedArgs = await mediaProperties.ToTrackInfoChangedEventArgsAsync(_logger);
 
                 // Only set the track length for sessions that support setting the playback position.
                 // This prevents the user from being able to change the track position when it's not supported.

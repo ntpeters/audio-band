@@ -45,7 +45,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Extensions\EnumerableExtensions.cs" />
+    <Compile Include="Extensions\GlobalSystemMediaTransportControlsSessionMediaPropertiesWrapperExtensions.cs" />
     <Compile Include="Extensions\GlobalSystemMediaTransportControlsSessionWrapperExtensions.cs" />
+    <Compile Include="Extensions\RandomAccessStreamReferenceExtensions.cs" />
+    <Compile Include="Extensions\RepeatModeExtensions.cs" />
     <Compile Include="Extensions\TypedEventHandlerExtensions.cs" />
     <Compile Include="IWindowsAudioSessionManager.cs" />
     <Compile Include="SettingConstants.cs" />
@@ -67,7 +71,6 @@
     <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionManagerWrapper.cs" />
     <Compile Include="WindowsAudioSessionManager.cs" />
     <Compile Include="WindowsAudioSource.cs" />
-    <Compile Include="ConversionExtensions.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Wrappers\IInstanceWrapper.cs" />
   </ItemGroup>
