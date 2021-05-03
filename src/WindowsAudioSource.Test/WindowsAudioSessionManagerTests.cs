@@ -1,10 +1,5 @@
 using AudioBand.AudioSource;
 using Moq;
-using System;
-using System.Linq;
-using System.Threading.Tasks;
-using Windows.Foundation;
-using Windows.Media.Control;
 using WindowsAudioSource.Wrappers;
 using Xunit;
 

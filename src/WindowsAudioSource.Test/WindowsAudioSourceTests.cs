@@ -306,8 +306,8 @@ namespace WindowsAudioSource.Test
             {
                 Logger = mockLogger.Object
             };
-            audioSource.CurrentSessionSource = expectedSessionSource;
-            var actualSessionSource = audioSource.CurrentSessionSource;
+            audioSource.A_CurrentSessionSource = expectedSessionSource;
+            var actualSessionSource = audioSource.A_CurrentSessionSource;
 
             _mockSessionManager.VerifySet(mock => mock.CurrentSessionSource = It.Is<string>(sessionSource => sessionSource == expectedSessionSource), Times.Once);
             _mockSessionManager.VerifyGet(mock => mock.CurrentSessionSource, Times.Once);
@@ -326,8 +326,8 @@ namespace WindowsAudioSource.Test
             {
                 Logger = mockLogger.Object
             };
-            audioSource.CurrentSessionType = expectedSessionType;
-            var actualSessionType = audioSource.CurrentSessionType;
+            audioSource.C_CurrentSessionType = expectedSessionType;
+            var actualSessionType = audioSource.C_CurrentSessionType;
 
             _mockSessionManager.VerifySet(mock => mock.CurrentSessionType = It.Is<string>(sessionType => sessionType == expectedSessionType), Times.Once);
             _mockSessionManager.VerifyGet(mock => mock.CurrentSessionType, Times.Once);
@@ -346,8 +346,8 @@ namespace WindowsAudioSource.Test
             {
                 Logger = mockLogger.Object
             };
-            audioSource.SessionSourceDisallowList = expectedSessionSourceDisallowList;
-            var actualSessionSourceDisallowList = audioSource.SessionSourceDisallowList;
+            audioSource.B_SessionSourceDisallowList = expectedSessionSourceDisallowList;
+            var actualSessionSourceDisallowList = audioSource.B_SessionSourceDisallowList;
 
             _mockSessionManager.VerifySet(mock => mock.SessionSourceDisallowList = It.Is<string>(sessionSourceDisallowList => sessionSourceDisallowList == expectedSessionSourceDisallowList), Times.Once);
             _mockSessionManager.VerifyGet(mock => mock.SessionSourceDisallowList, Times.Once);
