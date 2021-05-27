@@ -11,6 +11,9 @@ using WindowsAudioSource.Wrappers;
 
 namespace WindowsAudioSource
 {
+    // TODO: Merge this back into the audio source
+    // This existing as a separate class just serves as another (unnecessary) layer of indirection,
+    // with little value add other than slightly easier testing
     public class WindowsAudioSessionManager : IWindowsAudioSessionManager
     {
         #region Constants
@@ -166,7 +169,7 @@ namespace WindowsAudioSource
             // Swap the session managers
             _sessionManager = newSessionManager;
 
-            // Register event handlers on the new current session
+            // Register event handlers on the new current session manager
             if (_sessionManager != null)
             {
                 _sessionManager.CurrentSessionChanged += OnCurrentSessionChanged;

@@ -64,7 +64,7 @@ namespace WindowsAudioSource.Extensions
             return false;
         }
 
-        private static bool TryGetControls(this IGlobalSystemMediaTransportControlsSessionWrapper session, out IGlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper controls)
+        public static bool TryGetControls(this IGlobalSystemMediaTransportControlsSessionWrapper session, out IGlobalSystemMediaTransportControlsSessionPlaybackControlsWrapper controls)
         {
             controls = session?.GetPlaybackInfo()?.Controls;
             if (controls != null)

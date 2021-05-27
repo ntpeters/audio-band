@@ -13,7 +13,6 @@ namespace WindowsAudioSource.Test
         private Mock<IWindowsAudioSessionManager> _mockSessionManager;
         private Mock<IApiInformationProvider> _mockApiInformationProvider;
 
-
         public WindowsAudioSourceTests()
         {
             _mockSessionManager = new Mock<IWindowsAudioSessionManager>();
@@ -31,7 +30,9 @@ namespace WindowsAudioSource.Test
         [Fact]
         public void WindowsAudioSource_CreateWithSessionManager()
         {
-            Assert.NotNull(new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object));
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            //Assert.NotNull(new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object));
 
             _mockSessionManager.Verify(mock => mock.InitializeAsync(It.IsAny<IAudioSourceLogger>()), Times.Never);
             _mockSessionManager.VerifyAdd(mock => mock.SettingChanged += It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Never);
@@ -59,7 +60,11 @@ namespace WindowsAudioSource.Test
         {
             _mockApiInformationProvider.Setup(mock => mock.IsApiContractPresent(It.IsAny<string>(), It.IsAny<ushort>()))
                 .Returns(isApiContractPresent);
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object);
+
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object);
 
             Assert.Equal(expectedName, audioSource.Name);
             _mockApiInformationProvider.Verify(
@@ -77,10 +82,14 @@ namespace WindowsAudioSource.Test
             var mockLogger = new Mock<IAudioSourceLogger>();
             _mockApiInformationProvider.Setup(mock => mock.IsApiContractPresent(It.IsAny<string>(), It.IsAny<ushort>()))
                 .Returns(isApiContractPresent);
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
+
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
             await audioSource.ActivateAsync();
 
             _mockSessionManager.Verify(mock => mock.InitializeAsync(It.Is<IAudioSourceLogger>(logger => logger == mockLogger.Object)), Times.Exactly(expectedEventAddInvocations));
@@ -112,10 +121,14 @@ namespace WindowsAudioSource.Test
         public async Task WindowsAudioSource_DeactivateAsyncBeforeActivateAsync()
         {
             var mockLogger = new Mock<IAudioSourceLogger>();
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
+
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
             await audioSource.DeactivateAsync();
 
             _mockSessionManager.Verify(mock => mock.InitializeAsync(It.IsAny<IAudioSourceLogger>()), Times.Never);
@@ -141,10 +154,14 @@ namespace WindowsAudioSource.Test
         public async Task WindowsAudioSource_DeactivateAsyncAfterActivateAsync()
         {
             var mockLogger = new Mock<IAudioSourceLogger>();
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
+
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
             await audioSource.ActivateAsync();
             await audioSource.DeactivateAsync();
 
@@ -175,10 +192,13 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.SetupGet(mock => mock.CurrentSession)
                 .Returns(mockSystemSessionManager.Object);
 
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
             await audioSource.PlayTrackAsync();
 
             mockSystemSessionManager.Verify(mock => mock.TryPlayAsync(), Times.Once);
@@ -192,10 +212,13 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.SetupGet(mock => mock.CurrentSession)
                 .Returns(mockSystemSessionManager.Object);
 
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
             await audioSource.PauseTrackAsync();
 
             mockSystemSessionManager.Verify(mock => mock.TryPauseAsync(), Times.Once);
@@ -209,10 +232,13 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.SetupGet(mock => mock.CurrentSession)
                 .Returns(mockSystemSessionManager.Object);
 
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
             await audioSource.NextTrackAsync();
 
             mockSystemSessionManager.Verify(mock => mock.TrySkipNextAsync(), Times.Once);
@@ -226,10 +252,13 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.SetupGet(mock => mock.CurrentSession)
                 .Returns(mockSystemSessionManager.Object);
 
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
             await audioSource.PreviousTrackAsync();
 
             mockSystemSessionManager.Verify(mock => mock.TrySkipPreviousAsync(), Times.Once);
@@ -244,10 +273,13 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.SetupGet(mock => mock.CurrentSession)
                 .Returns(mockSystemSessionManager.Object);
 
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
             await audioSource.SetPlaybackProgressAsync(expectedProgress);
 
             mockSystemSessionManager.Verify(mock =>
@@ -264,10 +296,13 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.SetupGet(mock => mock.CurrentSession)
                 .Returns(mockSystemSessionManager.Object);
 
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
             await audioSource.SetRepeatModeAsync(testRepeatMode);
 
             mockSystemSessionManager.Verify(mock =>
@@ -284,10 +319,13 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.SetupGet(mock => mock.CurrentSession)
                 .Returns(mockSystemSessionManager.Object);
 
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
             await audioSource.SetRepeatModeAsync(testRepeatMode);
 
             mockSystemSessionManager.Verify(mock =>
@@ -302,12 +340,15 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.SetupGet(mock => mock.CurrentSessionSource)
                 .Returns(expectedSessionSource);
 
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
-            audioSource.A_CurrentSessionSource = expectedSessionSource;
-            var actualSessionSource = audioSource.A_CurrentSessionSource;
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
+            audioSource.CurrentSessionSource = expectedSessionSource;
+            var actualSessionSource = audioSource.CurrentSessionSource;
 
             _mockSessionManager.VerifySet(mock => mock.CurrentSessionSource = It.Is<string>(sessionSource => sessionSource == expectedSessionSource), Times.Once);
             _mockSessionManager.VerifyGet(mock => mock.CurrentSessionSource, Times.Once);
@@ -322,12 +363,15 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.SetupGet(mock => mock.CurrentSessionType)
                 .Returns(expectedSessionType);
 
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
-            audioSource.C_CurrentSessionType = expectedSessionType;
-            var actualSessionType = audioSource.C_CurrentSessionType;
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
+            audioSource.CurrentSessionType = expectedSessionType;
+            var actualSessionType = audioSource.CurrentSessionType;
 
             _mockSessionManager.VerifySet(mock => mock.CurrentSessionType = It.Is<string>(sessionType => sessionType == expectedSessionType), Times.Once);
             _mockSessionManager.VerifyGet(mock => mock.CurrentSessionType, Times.Once);
@@ -342,12 +386,15 @@ namespace WindowsAudioSource.Test
             _mockSessionManager.SetupGet(mock => mock.SessionSourceDisallowList)
                 .Returns(expectedSessionSourceDisallowList);
 
-            var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
-            {
-                Logger = mockLogger.Object
-            };
-            audioSource.B_SessionSourceDisallowList = expectedSessionSourceDisallowList;
-            var actualSessionSourceDisallowList = audioSource.B_SessionSourceDisallowList;
+            // TODO: Fix me
+            Assert.False(true, "Fix me!");
+            var audioSource = new WindowsAudioSource();
+            //var audioSource = new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object)
+            //{
+            //    Logger = mockLogger.Object
+            //};
+            audioSource.SessionSourceDisallowList = expectedSessionSourceDisallowList;
+            var actualSessionSourceDisallowList = audioSource.SessionSourceDisallowList;
 
             _mockSessionManager.VerifySet(mock => mock.SessionSourceDisallowList = It.Is<string>(sessionSourceDisallowList => sessionSourceDisallowList == expectedSessionSourceDisallowList), Times.Once);
             _mockSessionManager.VerifyGet(mock => mock.SessionSourceDisallowList, Times.Once);
