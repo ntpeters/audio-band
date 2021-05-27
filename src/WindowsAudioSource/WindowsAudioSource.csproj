@@ -52,6 +52,7 @@
     <Compile Include="Extensions\RepeatModeExtensions.cs" />
     <Compile Include="Extensions\TypedEventHandlerExtensions.cs" />
     <Compile Include="IWindowsAudioSessionManager.cs" />
+    <Compile Include="SessionLogger.cs" />
     <Compile Include="SettingConstants.cs" />
     <Compile Include="Wrappers\ApiInformationProvider.cs" />
     <Compile Include="Wrappers\GlobalSystemMediaTransportControlsSessionManagerWrapperFactory.cs" />

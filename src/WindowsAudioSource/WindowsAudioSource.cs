@@ -83,7 +83,7 @@ namespace WindowsAudioSource
                     return;
                 }
 
-                Logger?.Debug($"SessionSourceDisallowList Changed: {value}");
+                _logger.Debug($"SessionSourceDisallowList Changed: {value}");
                 _disallowedAppUserModelIds = value.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
                 _disallowedAppUserModelIdsDisplayText = string.Join(",", _disallowedAppUserModelIds);
                 OnCurrentSessionRestrictionSettingChanged();
@@ -123,7 +123,7 @@ namespace WindowsAudioSource
                     return;
                 }
 
-                Logger?.Debug($"MusicSessionsOnly Setting Changed: {value}");
+                _logger.Debug($"MusicSessionsOnly Setting Changed: {value}");
                 _musicSessionsOnly = value;
                 OnCurrentSessionRestrictionSettingChanged();
             }
@@ -172,6 +172,7 @@ namespace WindowsAudioSource
         #region Instance Variables
         private readonly IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory _windowsAudioSessionManagerFactory;
         private readonly IApiInformationProvider _apiInformationProvider;
+        private readonly SessionLogger _logger;
 
         private IGlobalSystemMediaTransportControlsSessionManagerWrapper _sessionManager;
         private IGlobalSystemMediaTransportControlsSessionWrapper _currentSession;
@@ -203,6 +204,7 @@ namespace WindowsAudioSource
         {
             _windowsAudioSessionManagerFactory = windowsAudioSessionManagerFactory;
             _apiInformationProvider = apiInformationProvider;
+            _logger = new SessionLogger(() => Logger, () => _currentSession?.SourceAppUserModelId);
         }
         #endregion Constructors
 
@@ -211,7 +213,7 @@ namespace WindowsAudioSource
         {
             if (!IsWindowsVersionSupported)
             {
-                Logger.Warn("Windows audio source is only supported on Windows 10 version 1809 and later");
+                _logger.Warn("Windows audio source is only supported on Windows 10 version 1809 and later");
                 return;
             }
 
@@ -245,7 +247,7 @@ namespace WindowsAudioSource
             // TODO: Is this actually needed if track length is unset?
             if (!_currentSession?.GetPlaybackInfo()?.Controls.IsPlaybackPositionEnabled == true)
             {
-                Logger.Warn("Ignoring set playback progress command: Current session does not support setting playback position");
+                _logger.Warn("Ignoring set playback progress command: Current session does not support setting playback position");
 
                 // Revert UI progress change from the user
                 TrackProgressChanged.Invoke(this, TimeSpan.Zero);
@@ -262,7 +264,7 @@ namespace WindowsAudioSource
 
         public Task SetVolumeAsync(float newVolume)
         {
-            Logger.Error("Volume Not Supported!");
+            _logger.Error("Volume Not Supported!");
             return Task.CompletedTask;
         }
         #endregion Public Methods
@@ -299,14 +301,14 @@ namespace WindowsAudioSource
         {
             if (Equals(newCurrentSession, _currentSession))
             {
-                Logger?.Debug("Ignoring current session changed event: New session is already the current session");
+                _logger.Debug("Ignoring current session changed event: New session is already the current session");
                 return;
             }
 
             // Check whether the new session has been disallowed by the user
             if (!IsSessionAllowed(newCurrentSession, out var disallowMessage))
             {
-                Logger?.Info($"Ignoring current session changed event: {disallowMessage}");
+                _logger.Info($"Ignoring current session changed event: {disallowMessage}");
                 return;
             }
 
@@ -356,7 +358,7 @@ namespace WindowsAudioSource
             }
             else
             {
-                Logger?.Debug("New session is null, resetting media info and playback state");
+                _logger.Debug("New session is null, resetting media info and playback state");
 
                 // If there is no new session, reset everything
                 ResetPlaybackInfo();
@@ -371,7 +373,7 @@ namespace WindowsAudioSource
         {
             if (sender == null)
             {
-                Logger?.Debug("Ignoring current session changed event: Sender is null");
+                _logger.Debug("Ignoring current session changed event: Sender is null");
                 return;
             }
 
@@ -382,31 +384,31 @@ namespace WindowsAudioSource
         {
             if (sender == null)
             {
-                Logger?.Debug("Ignoring session changed event: Sender is null");
+                _logger.Debug("Ignoring session changed event: Sender is null");
                 return;
             }
 
             // Only try selecting a better session if the user has settings that restrict the current session
             if (IsSessionAllowed(_currentSession, out _))
             {
-                Logger?.Debug("Ignoring sessions changed event: Current session is still allowed based on user settings");
+                _logger.Debug("Ignoring sessions changed event: Current session is still allowed based on user settings");
                 return;
             }
 
             var currentSessions = sender.GetSessions();
 
-            Logger?.Debug($"Checking for better session based on user settings: MusicSessionsOnly='{_musicSessionsOnly}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'");
+            _logger.Debug($"Checking for better session based on user settings: MusicSessionsOnly='{_musicSessionsOnly}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'");
 
             // Try to find another session that might be one the user wants
             // If no valid session is found, we'll just assume nothing is playing and reset everything
             var newSession = GetNextBestSession(currentSessions);
             if (newSession == null)
             {
-                Logger?.Debug("No valid session found");
+                _logger.Debug("No valid session found");
             }
             else if (Equals(newSession, _currentSession))
             {
-                Logger?.Debug("No better session found, keeping current session");
+                _logger.Debug("No better session found, keeping current session");
                 return;
             }
             else
@@ -419,7 +421,7 @@ namespace WindowsAudioSource
                 }
 
                 var newPlaybackInfo = newSession.GetPlaybackInfo();
-                Logger?.Debug($"Better session found: NewPlaybackType='{newPlaybackInfo.PlaybackType}'; NewPlaybackStatus='{newPlaybackInfo.PlaybackStatus}'; NewAppId='{newSession.SourceAppUserModelId}'; {oldSessionLogInfo}");
+                _logger.Debug($"Better session found: NewPlaybackType='{newPlaybackInfo.PlaybackType}'; NewPlaybackStatus='{newPlaybackInfo.PlaybackStatus}'; NewAppId='{newSession.SourceAppUserModelId}'; {oldSessionLogInfo}");
             }
 
             SetCurrentSession(newSession);
@@ -431,13 +433,13 @@ namespace WindowsAudioSource
         {
             if (sender == null)
             {
-                Logger?.Debug("Ignoring playback info changed event: Sender is null");
+                _logger.Debug("Ignoring playback info changed event: Sender is null");
                 return;
             }
 
             if (!Equals(sender, _currentSession))
             {
-                Logger?.Debug("Ignoring playback info changed event: Sender is not the current session");
+                _logger.Debug("Ignoring playback info changed event: Sender is not the current session");
                 return;
             }
 
@@ -466,7 +468,7 @@ namespace WindowsAudioSource
             }
             catch (Exception e)
             {
-                Logger?.Error(e);
+                _logger.Error(e);
             }
         }
 
@@ -474,13 +476,13 @@ namespace WindowsAudioSource
         {
             if (sender == null)
             {
-                Logger?.Debug("Ignoring track progress changed event: Sender is null");
+                _logger.Debug("Ignoring track progress changed event: Sender is null");
                 return;
             }
 
             if (!Equals(sender, _currentSession))
             {
-                Logger?.Debug("Ignoring track progress changed event: Sender is not the current session");
+                _logger.Debug("Ignoring track progress changed event: Sender is not the current session");
                 return;
             }
 
@@ -489,7 +491,7 @@ namespace WindowsAudioSource
             // session is first initiated.
             if (!_currentSession.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
             {
-                Logger?.Warn("Ignoring track progress changed event: Current session does not support setting playback position");
+                _logger.Warn("Ignoring track progress changed event: Current session does not support setting playback position");
 
                 // Ensure all subscribers know that track progress has not changed
                 ResetTrackProgress();
@@ -507,7 +509,7 @@ namespace WindowsAudioSource
             }
             catch (Exception e)
             {
-                Logger?.Error(e);
+                _logger.Error(e);
             }
         }
 
@@ -515,13 +517,13 @@ namespace WindowsAudioSource
         {
             if (sender == null)
             {
-                Logger?.Debug("Ignoring track info changed event: Sender is null");
+                _logger.Debug("Ignoring track info changed event: Sender is null");
                 return;
             }
 
             if (!Equals(sender, _currentSession))
             {
-                Logger?.Debug("Ignoring track info changed event: Sender is not the current session");
+                _logger.Debug("Ignoring track info changed event: Sender is not the current session");
                 return;
             }
 
@@ -540,7 +542,7 @@ namespace WindowsAudioSource
                 }
                 else
                 {
-                    Logger?.Warn("Ignoring track length: Current session does not support setting playback position");
+                    _logger.Warn("Ignoring track length: Current session does not support setting playback position");
                     trackInfoChangedArgs.TrackLength = TimeSpan.Zero;
                 }
 
@@ -553,7 +555,7 @@ namespace WindowsAudioSource
             }
             catch (Exception e)
             {
-                Logger?.Error(e);
+                _logger.Error(e);
             }
         }
         #endregion Session Event Handler Delegates
@@ -586,7 +588,7 @@ namespace WindowsAudioSource
             }
             catch (Exception e)
             {
-                Logger?.Error(e);
+                _logger.Error(e);
             }
 
             return null;
@@ -627,12 +629,12 @@ namespace WindowsAudioSource
         {
             if (_musicSessionsOnly || _disallowedAppUserModelIds.Count != 0)
             {
-                Logger?.Info($"Settings restricting the current session enabled. Looking for better session. SettingChanged='{caller}'");
+                _logger.Info($"Settings restricting the current session enabled. Looking for better session. SettingChanged='{caller}'");
                 OnSessionsChanged(_sessionManager, null);
             }
             else
             {
-                Logger?.Info($"All settings restricting the current session disabled. Defaulting to the current session. SettingChanged='{caller}'");
+                _logger.Info($"All settings restricting the current session disabled. Defaulting to the current session. SettingChanged='{caller}'");
                 OnCurrentSessionChanged(_sessionManager, null);
             }
         }
@@ -665,7 +667,7 @@ namespace WindowsAudioSource
             // For example, when media is already playing "IsPlayEnabled" is false and "IsPauseEnabled" is true, and the opposite is the case when media is paused.
             // Likewise, when there is no next track queued "IsNextEnabled" may be false.
             var sessionControls = session.GetPlaybackInfo().Controls;
-            Logger?.Debug($"New session for: '{session.SourceAppUserModelId}'. Capabilities: " +
+            _logger.Debug($"New session for: '{session.SourceAppUserModelId}'. Capabilities: " +
                 $"Play={sessionControls.IsPlayEnabled}; " +
                 $"Pause={sessionControls.IsPauseEnabled}; " +
                 $"Next={sessionControls.IsNextEnabled}; " +
@@ -679,7 +681,7 @@ namespace WindowsAudioSource
         {
             if (eventHandler == null)
             {
-                Logger?.Error($"Event handler is null. ArgsType={typeof(T)}");
+                _logger.Error($"Event handler is null. ArgsType={typeof(T)}");
             }
             else
             {
@@ -689,7 +691,7 @@ namespace WindowsAudioSource
                 }
                 catch (Exception e)
                 {
-                    Logger?.Error(e);
+                    _logger.Error(e);
                 }
             }
         }
@@ -701,12 +703,12 @@ namespace WindowsAudioSource
                 var success = await command();
                 if (!success)
                 {
-                    Logger.Warn($"Player command failed: '{caller}'");
+                    _logger.Warn($"Player command failed: '{caller}'");
                 }
             }
             catch (Exception e)
             {
-                Logger.Error(e);
+                _logger.Error(e);
             }
         }
         #endregion Helpers
