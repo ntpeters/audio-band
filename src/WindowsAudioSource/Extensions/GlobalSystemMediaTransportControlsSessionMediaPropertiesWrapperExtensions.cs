@@ -13,7 +13,12 @@ namespace WindowsAudioSource.Extensions
             Image albumArt = null;
             if (mediaProperties.Thumbnail != null)
             {
-                albumArt = await mediaProperties.Thumbnail.ToImageAsync(logger);
+                var toImageResult = await mediaProperties.Thumbnail.ToImageAsync();
+                if (toImageResult.Image == null)
+                {
+                    logger?.Debug($"Failed to read album art: {toImageResult.Error}");
+                }
+                albumArt = toImageResult.Image;
             }
             else
             {
