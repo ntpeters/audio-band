@@ -47,7 +47,6 @@
   <ItemGroup>
     <Compile Include="RandomAccessStreamReferenceExtensionsTests.cs" />
     <Compile Include="SettingsConstantsTests.cs" />
-    <Compile Include="WindowsAudioSessionManagerTests.cs" />
     <Compile Include="WindowsAudioSourceTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
