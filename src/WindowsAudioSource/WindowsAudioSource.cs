@@ -16,20 +16,6 @@ namespace WindowsAudioSource
     public class WindowsAudioSource : IAudioSource
     {
         #region Brainstorming TODOs
-        // TODO: Add setting to attempt choosing the "best" session, and default to the current session always
-        //       -> Maybe. Needs more thought. Only very specific cases make sense due to the way multi-session apps work
-        // TODO: Add setting to auto pause previous session when sessions switch
-        //       -> No, multi-session apps like browsers are too unreliable to ensure the correct session is being paused if the app is reporting a new active session
-        // TODO: Add setting for locking to a specified app
-        //       -> No, tested and is too unreliable for multi-session apps like browsers, and no way to detect such apps
-        // TODO: Add setting for *temporarily* locking to the current session (useful for browsers)
-        //       -> Nope, see above
-        // TODO: Write seen AppUserModelIds to a rotating temp file, and add readonly setting showing its path
-        //       -> Maybe, unclear if this would actually be useful to users
-        // TODO: Switch this to a couple of flags for music, video, and unknown sources
-        //       -> Just one flag for music, default to current session always
-        // TODO: Move impl of media controls into separte controls class
-        //       -> Seems unnecessary, their impl is minimal and refactoring wouldn't seem to benefit much other than division of responsibilities at the cost of increase complexity
         // TODO: Add setting for "smooth" track progress, since updates don't seem to come in each second
         //       -> Maybe. Need to test how well this would work
         #endregion Brainstorming TODOs
@@ -46,11 +32,9 @@ namespace WindowsAudioSource
         #endregion Constants
 
         #region Settings
-        // TODO: Look into other options for controlling setting order in the UI
-        // Each of these setting properties has a letter prefix at the moment to control
-        // the order in which they are displayed to the user in the settings dialog.
-        // It appears that the settings in the UI are placed in lexical order
-        // based on the property names.
+        // NOTE: It appears that the settings in the UI are placed in lexical order based on the property names. 
+        // AudioSourceSetting.Priority has no part in the setting display order, only the order in which
+        // simultaneous setting changes are applied.
         [AudioSourceSetting(SettingConstants.CurrentSessionSourceName,
             Description = SettingConstants.CurrentSessionSourceDescription,
             Options = SettingOptions.ReadOnly)]
@@ -219,7 +203,6 @@ namespace WindowsAudioSource
                 return;
             }
 
-            // TODO: Clean this up
             var sessionManager = await _windowsAudioSessionManagerFactory.GetInstanceAsync();
             SetSessionManager(sessionManager);
         }
@@ -230,7 +213,6 @@ namespace WindowsAudioSource
             return Task.CompletedTask;
         }
 
-        // TODO: Only attempt each control if it's supported by the current session
         public Task NextTrackAsync() => LogPlayerCommandIfFailed(() => _currentSession?.TrySkipNextAsync());
 
         public Task PauseTrackAsync() => LogPlayerCommandIfFailed(() => _currentSession?.TryPauseAsync());
@@ -239,8 +221,6 @@ namespace WindowsAudioSource
 
         public Task PreviousTrackAsync() => LogPlayerCommandIfFailed(() => _currentSession?.TrySkipPreviousAsync());
 
-        // This needs to be in ticks, per discussion here:
-        // https://github.com/MicrosoftDocs/winrt-api/issues/1725
         public Task SetPlaybackProgressAsync(TimeSpan newProgress)
         {
             // Some apps (I'm looking at you Groove Music) don't support changing the playback postition, but
@@ -256,6 +236,8 @@ namespace WindowsAudioSource
                 return Task.CompletedTask;
             }
 
+            // This needs to be in ticks, per discussion here:
+            // https://github.com/MicrosoftDocs/winrt-api/issues/1725
             return LogPlayerCommandIfFailed(() => _currentSession?.TryChangePlaybackPositionAsync(newProgress.Ticks));
         }
 
