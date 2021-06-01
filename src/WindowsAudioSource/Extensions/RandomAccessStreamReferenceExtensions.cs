@@ -19,7 +19,7 @@ namespace WindowsAudioSource.Extensions
         /// to copy the data from the stream as the stream must be left open for the lifetime of the image (see remarks on <see cref="Image.FromStream(Stream)"/>).
         /// These two behaviors combined make it possible for the album art to sometimes be loaded for a different session than
         /// the one that is currently being controlled.
-        ///<br></br><br></br>
+        /// <br></br><br></br>
         /// This issue is potentially further compounded in certain scenarios (which have been seen transiently during manual testing):
         /// <br></br>
         /// 1. When an app contains multiple sessions, since the Windows APIs only expose a single session per unique AppUserModelId.

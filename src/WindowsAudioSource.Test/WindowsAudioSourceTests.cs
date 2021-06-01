@@ -10,12 +10,10 @@ namespace WindowsAudioSource.Test
 {
     public class WindowsAudioSourceTests
     {
-        private Mock<IWindowsAudioSessionManager> _mockSessionManager;
         private Mock<IApiInformationProvider> _mockApiInformationProvider;
 
         public WindowsAudioSourceTests()
         {
-            _mockSessionManager = new Mock<IWindowsAudioSessionManager>();
             _mockApiInformationProvider = new Mock<IApiInformationProvider>();
             _mockApiInformationProvider.Setup(mock => mock.IsApiContractPresent(It.IsAny<string>(), It.IsAny<ushort>()))
                 .Returns(true);
@@ -32,25 +30,6 @@ namespace WindowsAudioSource.Test
         {
             // TODO: Fix me
             Assert.False(true, "Fix me!");
-            //Assert.NotNull(new WindowsAudioSource(_mockSessionManager.Object, _mockApiInformationProvider.Object));
-
-            _mockSessionManager.Verify(mock => mock.InitializeAsync(It.IsAny<IAudioSourceLogger>()), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.SettingChanged += It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.TrackInfoChanged += It.IsAny<EventHandler<TrackInfoChangedEventArgs>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.IsPlayingChanged += It.IsAny<EventHandler<bool>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.TrackProgressChanged += It.IsAny<EventHandler<TimeSpan>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.VolumeChanged += It.IsAny<EventHandler<float>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.ShuffleChanged += It.IsAny<EventHandler<bool>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.RepeatModeChanged += It.IsAny<EventHandler<RepeatMode>>(), Times.Never);
-
-            _mockSessionManager.Verify(mock => mock.Unintialize(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.SettingChanged -= It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.TrackInfoChanged -= It.IsAny<EventHandler<TrackInfoChangedEventArgs>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.IsPlayingChanged -= It.IsAny<EventHandler<bool>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.TrackProgressChanged -= It.IsAny<EventHandler<TimeSpan>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.VolumeChanged -= It.IsAny<EventHandler<float>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.ShuffleChanged -= It.IsAny<EventHandler<bool>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.RepeatModeChanged -= It.IsAny<EventHandler<RepeatMode>>(), Times.Never);
         }
 
         [Theory]
@@ -92,24 +71,6 @@ namespace WindowsAudioSource.Test
             //};
             await audioSource.ActivateAsync();
 
-            _mockSessionManager.Verify(mock => mock.InitializeAsync(It.Is<IAudioSourceLogger>(logger => logger == mockLogger.Object)), Times.Exactly(expectedEventAddInvocations));
-            _mockSessionManager.VerifyAdd(mock => mock.SettingChanged += It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Exactly(expectedEventAddInvocations));
-            _mockSessionManager.VerifyAdd(mock => mock.TrackInfoChanged += It.IsAny<EventHandler<TrackInfoChangedEventArgs>>(), Times.Exactly(expectedEventAddInvocations));
-            _mockSessionManager.VerifyAdd(mock => mock.IsPlayingChanged += It.IsAny<EventHandler<bool>>(), Times.Exactly(expectedEventAddInvocations));
-            _mockSessionManager.VerifyAdd(mock => mock.TrackProgressChanged += It.IsAny<EventHandler<TimeSpan>>(), Times.Exactly(expectedEventAddInvocations));
-            _mockSessionManager.VerifyAdd(mock => mock.VolumeChanged += It.IsAny<EventHandler<float>>(), Times.Exactly(expectedEventAddInvocations));
-            _mockSessionManager.VerifyAdd(mock => mock.ShuffleChanged += It.IsAny<EventHandler<bool>>(), Times.Exactly(expectedEventAddInvocations));
-            _mockSessionManager.VerifyAdd(mock => mock.RepeatModeChanged += It.IsAny<EventHandler<RepeatMode>>(), Times.Exactly(expectedEventAddInvocations));
-
-            _mockSessionManager.Verify(mock => mock.Unintialize(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.SettingChanged -= It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.TrackInfoChanged -= It.IsAny<EventHandler<TrackInfoChangedEventArgs>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.IsPlayingChanged -= It.IsAny<EventHandler<bool>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.TrackProgressChanged -= It.IsAny<EventHandler<TimeSpan>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.VolumeChanged -= It.IsAny<EventHandler<float>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.ShuffleChanged -= It.IsAny<EventHandler<bool>>(), Times.Never);
-            _mockSessionManager.VerifyRemove(mock => mock.RepeatModeChanged -= It.IsAny<EventHandler<RepeatMode>>(), Times.Never);
-
             _mockApiInformationProvider.Verify(
                 mock => mock.IsApiContractPresent(
                     It.Is<string>(contractName => contractName == "Windows.Foundation.UniversalApiContract"),
@@ -130,24 +91,6 @@ namespace WindowsAudioSource.Test
             //    Logger = mockLogger.Object
             //};
             await audioSource.DeactivateAsync();
-
-            _mockSessionManager.Verify(mock => mock.InitializeAsync(It.IsAny<IAudioSourceLogger>()), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.SettingChanged += It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.TrackInfoChanged += It.IsAny<EventHandler<TrackInfoChangedEventArgs>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.IsPlayingChanged += It.IsAny<EventHandler<bool>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.TrackProgressChanged += It.IsAny<EventHandler<TimeSpan>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.VolumeChanged += It.IsAny<EventHandler<float>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.ShuffleChanged += It.IsAny<EventHandler<bool>>(), Times.Never);
-            _mockSessionManager.VerifyAdd(mock => mock.RepeatModeChanged += It.IsAny<EventHandler<RepeatMode>>(), Times.Never);
-
-            _mockSessionManager.Verify(mock => mock.Unintialize(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.SettingChanged -= It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.TrackInfoChanged -= It.IsAny<EventHandler<TrackInfoChangedEventArgs>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.IsPlayingChanged -= It.IsAny<EventHandler<bool>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.TrackProgressChanged -= It.IsAny<EventHandler<TimeSpan>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.VolumeChanged -= It.IsAny<EventHandler<float>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.ShuffleChanged -= It.IsAny<EventHandler<bool>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.RepeatModeChanged -= It.IsAny<EventHandler<RepeatMode>>(), Times.Once);
         }
 
         [Fact]
@@ -164,24 +107,6 @@ namespace WindowsAudioSource.Test
             //};
             await audioSource.ActivateAsync();
             await audioSource.DeactivateAsync();
-
-            _mockSessionManager.Verify(mock => mock.InitializeAsync(It.Is<IAudioSourceLogger>(logger => logger == mockLogger.Object)), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.SettingChanged += It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.TrackInfoChanged += It.IsAny<EventHandler<TrackInfoChangedEventArgs>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.IsPlayingChanged += It.IsAny<EventHandler<bool>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.TrackProgressChanged += It.IsAny<EventHandler<TimeSpan>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.VolumeChanged += It.IsAny<EventHandler<float>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.ShuffleChanged += It.IsAny<EventHandler<bool>>(), Times.Once);
-            _mockSessionManager.VerifyAdd(mock => mock.RepeatModeChanged += It.IsAny<EventHandler<RepeatMode>>(), Times.Once);
-
-            _mockSessionManager.Verify(mock => mock.Unintialize(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.SettingChanged -= It.IsAny<EventHandler<SettingChangedEventArgs>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.TrackInfoChanged -= It.IsAny<EventHandler<TrackInfoChangedEventArgs>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.IsPlayingChanged -= It.IsAny<EventHandler<bool>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.TrackProgressChanged -= It.IsAny<EventHandler<TimeSpan>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.VolumeChanged -= It.IsAny<EventHandler<float>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.ShuffleChanged -= It.IsAny<EventHandler<bool>>(), Times.Once);
-            _mockSessionManager.VerifyRemove(mock => mock.RepeatModeChanged -= It.IsAny<EventHandler<RepeatMode>>(), Times.Once);
         }
 
         [Fact]
@@ -189,8 +114,6 @@ namespace WindowsAudioSource.Test
         {
             var mockLogger = new Mock<IAudioSourceLogger>();
             var mockSystemSessionManager = new Mock<IGlobalSystemMediaTransportControlsSessionWrapper>();
-            _mockSessionManager.SetupGet(mock => mock.CurrentSession)
-                .Returns(mockSystemSessionManager.Object);
 
             // TODO: Fix me
             Assert.False(true, "Fix me!");
@@ -209,8 +132,6 @@ namespace WindowsAudioSource.Test
         {
             var mockLogger = new Mock<IAudioSourceLogger>();
             var mockSystemSessionManager = new Mock<IGlobalSystemMediaTransportControlsSessionWrapper>();
-            _mockSessionManager.SetupGet(mock => mock.CurrentSession)
-                .Returns(mockSystemSessionManager.Object);
 
             // TODO: Fix me
             Assert.False(true, "Fix me!");
@@ -229,8 +150,6 @@ namespace WindowsAudioSource.Test
         {
             var mockLogger = new Mock<IAudioSourceLogger>();
             var mockSystemSessionManager = new Mock<IGlobalSystemMediaTransportControlsSessionWrapper>();
-            _mockSessionManager.SetupGet(mock => mock.CurrentSession)
-                .Returns(mockSystemSessionManager.Object);
 
             // TODO: Fix me
             Assert.False(true, "Fix me!");
@@ -249,8 +168,6 @@ namespace WindowsAudioSource.Test
         {
             var mockLogger = new Mock<IAudioSourceLogger>();
             var mockSystemSessionManager = new Mock<IGlobalSystemMediaTransportControlsSessionWrapper>();
-            _mockSessionManager.SetupGet(mock => mock.CurrentSession)
-                .Returns(mockSystemSessionManager.Object);
 
             // TODO: Fix me
             Assert.False(true, "Fix me!");
@@ -270,8 +187,6 @@ namespace WindowsAudioSource.Test
             var expectedProgress = TimeSpan.FromMinutes(5);
             var mockLogger = new Mock<IAudioSourceLogger>();
             var mockSystemSessionManager = new Mock<IGlobalSystemMediaTransportControlsSessionWrapper>();
-            _mockSessionManager.SetupGet(mock => mock.CurrentSession)
-                .Returns(mockSystemSessionManager.Object);
 
             // TODO: Fix me
             Assert.False(true, "Fix me!");
@@ -293,8 +208,6 @@ namespace WindowsAudioSource.Test
             var expectedRepeatMode = MediaPlaybackAutoRepeatMode.Track;
             var mockLogger = new Mock<IAudioSourceLogger>();
             var mockSystemSessionManager = new Mock<IGlobalSystemMediaTransportControlsSessionWrapper>();
-            _mockSessionManager.SetupGet(mock => mock.CurrentSession)
-                .Returns(mockSystemSessionManager.Object);
 
             // TODO: Fix me
             Assert.False(true, "Fix me!");
@@ -316,8 +229,6 @@ namespace WindowsAudioSource.Test
             var expectedRepeatMode = MediaPlaybackAutoRepeatMode.Track;
             var mockLogger = new Mock<IAudioSourceLogger>();
             var mockSystemSessionManager = new Mock<IGlobalSystemMediaTransportControlsSessionWrapper>();
-            _mockSessionManager.SetupGet(mock => mock.CurrentSession)
-                .Returns(mockSystemSessionManager.Object);
 
             // TODO: Fix me
             Assert.False(true, "Fix me!");
@@ -337,8 +248,6 @@ namespace WindowsAudioSource.Test
         {
             var expectedSessionSource = "TestApp";
             var mockLogger = new Mock<IAudioSourceLogger>();
-            _mockSessionManager.SetupGet(mock => mock.CurrentSessionSource)
-                .Returns(expectedSessionSource);
 
             // TODO: Fix me
             Assert.False(true, "Fix me!");
@@ -350,8 +259,6 @@ namespace WindowsAudioSource.Test
             audioSource.CurrentSessionSource = expectedSessionSource;
             var actualSessionSource = audioSource.CurrentSessionSource;
 
-            _mockSessionManager.VerifySet(mock => mock.CurrentSessionSource = It.Is<string>(sessionSource => sessionSource == expectedSessionSource), Times.Once);
-            _mockSessionManager.VerifyGet(mock => mock.CurrentSessionSource, Times.Once);
             Assert.Equal(expectedSessionSource, actualSessionSource);
         }
 
@@ -360,8 +267,6 @@ namespace WindowsAudioSource.Test
         {
             var expectedSessionType = "Music";
             var mockLogger = new Mock<IAudioSourceLogger>();
-            _mockSessionManager.SetupGet(mock => mock.CurrentSessionType)
-                .Returns(expectedSessionType);
 
             // TODO: Fix me
             Assert.False(true, "Fix me!");
@@ -373,8 +278,6 @@ namespace WindowsAudioSource.Test
             audioSource.CurrentSessionType = expectedSessionType;
             var actualSessionType = audioSource.CurrentSessionType;
 
-            _mockSessionManager.VerifySet(mock => mock.CurrentSessionType = It.Is<string>(sessionType => sessionType == expectedSessionType), Times.Once);
-            _mockSessionManager.VerifyGet(mock => mock.CurrentSessionType, Times.Once);
             Assert.Equal(expectedSessionType, actualSessionType);
         }
 
@@ -383,8 +286,6 @@ namespace WindowsAudioSource.Test
         {
             var expectedSessionSourceDisallowList = "App1,App2,App3";
             var mockLogger = new Mock<IAudioSourceLogger>();
-            _mockSessionManager.SetupGet(mock => mock.SessionSourceDisallowList)
-                .Returns(expectedSessionSourceDisallowList);
 
             // TODO: Fix me
             Assert.False(true, "Fix me!");
@@ -396,8 +297,6 @@ namespace WindowsAudioSource.Test
             audioSource.SessionSourceDisallowList = expectedSessionSourceDisallowList;
             var actualSessionSourceDisallowList = audioSource.SessionSourceDisallowList;
 
-            _mockSessionManager.VerifySet(mock => mock.SessionSourceDisallowList = It.Is<string>(sessionSourceDisallowList => sessionSourceDisallowList == expectedSessionSourceDisallowList), Times.Once);
-            _mockSessionManager.VerifyGet(mock => mock.SessionSourceDisallowList, Times.Once);
             Assert.Equal(expectedSessionSourceDisallowList, actualSessionSourceDisallowList);
         }
     }

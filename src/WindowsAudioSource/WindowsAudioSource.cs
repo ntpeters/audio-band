@@ -176,6 +176,8 @@ namespace WindowsAudioSource
 
         private IGlobalSystemMediaTransportControlsSessionManagerWrapper _sessionManager;
         private IGlobalSystemMediaTransportControlsSessionWrapper _currentSession;
+
+        // State
         private bool _isPlaying;
         private TimeSpan _trackProgress;
         private bool _shuffle;
@@ -185,7 +187,7 @@ namespace WindowsAudioSource
         private string _currentAlbum;
         private Image _albumArt;
 
-        // For settings
+        // Settings
         private string _currentSourceAppUserModlelId = string.Empty;
         private string _currentSourceType = string.Empty;
         private IList<string> _disallowedAppUserModelIds = new List<string>();
@@ -366,6 +368,7 @@ namespace WindowsAudioSource
                 ResetTrackProgress();
             }
         }
+
         #endregion Session Management
 
         #region Session Manager Event Handler Delegates
@@ -531,8 +534,20 @@ namespace WindowsAudioSource
             {
                 var mediaProperties = await sender.TryGetMediaPropertiesAsync();
 
-                // Convert media properties to event args to update track info.
-                var trackInfoChangedArgs = await mediaProperties.ToTrackInfoChangedEventArgsAsync(Logger);
+                // Convert media properties to event args to update track info
+                var trackInfoChangedArgs = new TrackInfoChangedEventArgs
+                {
+                    TrackName = mediaProperties.Title,
+                    Artist = mediaProperties.Artist,
+                    Album = mediaProperties.AlbumTitle
+                };
+
+                // Try to convert the album art thumbnail
+                var (albumArt, albumArtError) = await mediaProperties.Thumbnail.ToImageAsync();
+                if (albumArt == null)
+                {
+                    _logger.Debug($"Failed to read album art: {albumArtError}");
+                }
 
                 // Only set the track length for sessions that support setting the playback position.
                 // This prevents the user from being able to change the track position when it's not supported.
@@ -549,7 +564,11 @@ namespace WindowsAudioSource
                 _currentTrackName = trackInfoChangedArgs.TrackName;
                 _currentArtist = trackInfoChangedArgs.Artist;
                 _currentAlbum = trackInfoChangedArgs.Album;
-                _albumArt = trackInfoChangedArgs.AlbumArt;
+
+                using (var oldAlbumArt = _albumArt)
+                {
+                    _albumArt = trackInfoChangedArgs.AlbumArt;
+                }
 
                 LogEventInvocationIfFailed(TrackInfoChanged, this, trackInfoChangedArgs);
             }
@@ -603,8 +622,10 @@ namespace WindowsAudioSource
             emptyTrackInfoChangedArgs.AlbumArt = null;  // Must be null to ensure we reset to the placeholder art
             LogEventInvocationIfFailed(TrackInfoChanged, this, emptyTrackInfoChangedArgs);
 
-            _albumArt?.Dispose();
-            _albumArt = null;
+            using (var oldAlbumArt = _albumArt)
+            {
+                _albumArt = null;
+            }
         }
 
         private void ResetTrackProgress()
