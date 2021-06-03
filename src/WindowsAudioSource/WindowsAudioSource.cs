@@ -1,9 +1,11 @@
 using AudioBand.AudioSource;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Media;
@@ -40,7 +42,13 @@ namespace WindowsAudioSource
             Options = SettingOptions.ReadOnly)]
         public string CurrentSessionSource
         {
-            get => _currentSourceAppUserModlelId;
+            get
+            {
+                lock (_currentSessionSourceMutex)
+                {
+                    return _currentSourceAppUserModlelId;
+                }
+            }
             set
             {
                 if (value == _currentSourceAppUserModlelId)
@@ -48,7 +56,17 @@ namespace WindowsAudioSource
                     return;
                 }
 
-                _currentSourceAppUserModlelId = value;
+                lock (_currentSessionSourceMutex)
+                {
+                    // Check if the value changed before we aquired the lock
+                    if (value == _currentSourceAppUserModlelId)
+                    {
+                        return;
+                    }
+
+                    _currentSourceAppUserModlelId = value;
+                }
+
                 LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionSourceName));
             }
         }
@@ -58,19 +76,38 @@ namespace WindowsAudioSource
             Priority = 10)]
         public string SessionSourceDisallowList
         {
-            get => _disallowedAppUserModelIdsDisplayText;
+            get
+            {
+                lock (_sessionSourceDisallowListMutex)
+                {
+                    return _disallowedAppUserModelIdsDisplayText;
+                }
+            }
 
             set
             {
+                value = value.Trim();
                 if (value == _disallowedAppUserModelIdsDisplayText)
                 {
                     return;
                 }
 
-                _logger.Debug($"SessionSourceDisallowList Changed: {value}");
-                _disallowedAppUserModelIds = value.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
-                _disallowedAppUserModelIdsDisplayText = string.Join(",", _disallowedAppUserModelIds);
-                OnCurrentSessionRestrictionSettingChanged();
+                IList<string> newDisallowedAppUserModelIdsValue;
+                lock (_sessionSourceDisallowListMutex)
+                {
+                    // Check if the value changed before we aquired the lock
+                    if (value == _disallowedAppUserModelIdsDisplayText)
+                    {
+                        return;
+                    }
+
+                    _disallowedAppUserModelIds = value.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                    _disallowedAppUserModelIdsDisplayText = string.Join(",", _disallowedAppUserModelIds);
+                    newDisallowedAppUserModelIdsValue = _disallowedAppUserModelIds;
+                }
+
+                _logger.Debug($"SessionSourceDisallowList Changed: {newDisallowedAppUserModelIdsValue}");
+                OnSessionSourceDisallowListSettingChanged(newDisallowedAppUserModelIdsValue);
             }
         }
 
@@ -79,7 +116,13 @@ namespace WindowsAudioSource
             Options = SettingOptions.ReadOnly)]
         public string CurrentSessionType
         {
-            get => _currentSourceType;
+            get
+            {
+                lock (_currentSessionTypeMutex)
+                {
+                    return _currentSourceType;
+                }
+            }
 
             set
             {
@@ -88,7 +131,17 @@ namespace WindowsAudioSource
                     return;
                 }
 
-                _currentSourceType = value;
+                lock (_currentSessionTypeMutex)
+                {
+                    // Check if the value changed before we aquired the lock
+                    if (value == _currentSourceType)
+                    {
+                        return;
+                    }
+
+                    _currentSourceType = value;
+                }
+
                 LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionTypeName));
             }
         }
@@ -98,7 +151,13 @@ namespace WindowsAudioSource
             Priority = 9)]
         public bool MusicSessionsOnly
         {
-            get => _musicSessionsOnly;
+            get
+            {
+                lock (_musicSessionsOnlyMutex)
+                {
+                    return _musicSessionsOnly;
+                }
+            }
 
             set
             {
@@ -107,9 +166,21 @@ namespace WindowsAudioSource
                     return;
                 }
 
+                bool newMusicSessionsOnlyValue;
+                lock (_musicSessionsOnlyMutex)
+                {
+                    // Check if the value changed before we aquired the lock
+                    if (value == _musicSessionsOnly)
+                    {
+                        return;
+                    }
+
+                    _musicSessionsOnly = value;
+                    newMusicSessionsOnlyValue = _musicSessionsOnly;
+                }
+
                 _logger.Debug($"MusicSessionsOnly Setting Changed: {value}");
-                _musicSessionsOnly = value;
-                OnCurrentSessionRestrictionSettingChanged();
+                OnMusicSessionsOnlySettingChanged(newMusicSessionsOnlyValue);
             }
         }
 
@@ -118,7 +189,13 @@ namespace WindowsAudioSource
             Options = SettingOptions.ReadOnly)]
         public string CurrentSessionCapabilities
         {
-            get => _currentSourceCapabilities;
+            get
+            {
+                lock (_currentSessionCapabilitiesMutex)
+                {
+                    return _currentSourceCapabilities;
+                }
+            }
 
             set
             {
@@ -127,7 +204,17 @@ namespace WindowsAudioSource
                     return;
                 }
 
-                _currentSourceCapabilities = value;
+                lock (_currentSessionCapabilitiesMutex)
+                {
+                    // Check if the value changed before we aquired the lock
+                    if (value == _currentSourceCapabilities)
+                    {
+                        return;
+                    }
+
+                    _currentSourceCapabilities = value;
+                }
+
                 LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.CurrentSessionCapabilitiesName));
             }
         }
@@ -171,13 +258,19 @@ namespace WindowsAudioSource
         private Image _albumArt;
 
         // Settings
-        // TODO: Add locks around usages of settings
         private string _currentSourceAppUserModlelId = string.Empty;
         private string _currentSourceType = string.Empty;
         private IList<string> _disallowedAppUserModelIds = new List<string>();
         private string _disallowedAppUserModelIdsDisplayText = string.Empty;
         private string _currentSourceCapabilities = string.Empty;
         private bool _musicSessionsOnly = false;
+
+        // Locks
+        private readonly object _currentSessionSourceMutex = new object();
+        private readonly object _sessionSourceDisallowListMutex = new object();
+        private readonly object _currentSessionTypeMutex = new object();
+        private readonly object _musicSessionsOnlyMutex = new object();
+        private readonly object _currentSessionCapabilitiesMutex = new object();
         #endregion Instance Variables
 
         #region Constructors
@@ -357,7 +450,7 @@ namespace WindowsAudioSource
             }
 
             // Only try selecting a better session if the user has settings that restrict the current session
-            if (IsSessionAllowed(_currentSession, out _))
+            if (IsSessionAllowed(_currentSession, out var disallowMessage))
             {
                 _logger.Debug("Ignoring sessions changed event: Current session is still allowed based on user settings");
                 return;
@@ -365,7 +458,7 @@ namespace WindowsAudioSource
 
             var currentSessions = sender.GetSessions();
 
-            _logger.Debug($"Checking for better session based on user settings: MusicSessionsOnly='{_musicSessionsOnly}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'");
+            _logger.Debug($"Checking for better session based on user settings: {disallowMessage}");
 
             // Try to find another session that might be one the user wants
             // If no valid session is found, we'll just assume nothing is playing and reset everything
@@ -620,9 +713,13 @@ namespace WindowsAudioSource
             LogEventInvocationIfFailed(RepeatModeChanged, this, _repeatMode);
         }
 
-        private void OnCurrentSessionRestrictionSettingChanged([CallerMemberName] string caller = null)
+        private void OnMusicSessionsOnlySettingChanged(bool newMusicSessionsOnlyValue) => OnCurrentSessionRestrictionSettingChanged(newMusicSessionsOnlyValue, null);
+
+        private void OnSessionSourceDisallowListSettingChanged(IList<string> newSessionSourceDisallowListValue) => OnCurrentSessionRestrictionSettingChanged(null, newSessionSourceDisallowListValue);
+
+        private void OnCurrentSessionRestrictionSettingChanged(bool? newMusicSessionsOnlyValue, IList<string> newSessionSourceDisallowListValue, [CallerMemberName] string caller = null)
         {
-            if (_musicSessionsOnly || _disallowedAppUserModelIds.Count != 0)
+            if (newMusicSessionsOnlyValue == true || newSessionSourceDisallowListValue?.Count > 0)
             {
                 _logger.Info($"Settings restricting the current session enabled. Looking for better session. SettingChanged='{caller}'");
                 OnSessionsChanged(_sessionManager, null);
@@ -636,23 +733,42 @@ namespace WindowsAudioSource
 
         private bool IsSessionAllowed(IGlobalSystemMediaTransportControlsSessionWrapper session, out string disallowMessage)
         {
-            // Check whether the session playback type has been disallowed by the user
-            var sessionPlaybackType = session?.GetPlaybackInfo()?.PlaybackType;
-            if (sessionPlaybackType != null && _musicSessionsOnly && sessionPlaybackType != MediaPlaybackType.Music)
+            disallowMessage = string.Empty;
+            if (session == null)
             {
-                disallowMessage = $"Session playback type is not music, and user has enabled music sessions only. PlaybackType='{sessionPlaybackType}'";
-                return false;
+                return true;
+            }
+
+            // Check whether the session playback type has been disallowed by the user
+            var sessionPlaybackType = session.GetPlaybackInfo()?.PlaybackType;
+            if (sessionPlaybackType != null && sessionPlaybackType != MediaPlaybackType.Music)
+            {
+                // Only aquire the lock if the setting is applicable to the current state
+                lock (_musicSessionsOnlyMutex)
+                {
+                    if (_musicSessionsOnly)
+                    {
+                        disallowMessage = $"Session playback type is not music, and user has enabled music sessions only. PlaybackType='{sessionPlaybackType}'";
+                        return false;
+                    }
+                }
             }
 
             // Check whether the session source has been disallowed by the user
-            var sessionSourceAppUserModelId = session?.SourceAppUserModelId;
-            if (sessionSourceAppUserModelId != null && _disallowedAppUserModelIds.Contains(sessionSourceAppUserModelId))
+            var sessionSourceAppUserModelId = session.SourceAppUserModelId;
+            if (!string.IsNullOrWhiteSpace(sessionSourceAppUserModelId))
             {
-                disallowMessage = $"Session source is disallowed by user setting. SourceAppUserModelId='{sessionSourceAppUserModelId}'; DisallowedAppUserModelIds='{SessionSourceDisallowList}'";
-                return false;
+                // Only aquire the lock if the setting is applicable to the current state
+                lock (_sessionSourceDisallowListMutex)
+                {
+                    if (_disallowedAppUserModelIds.Contains(sessionSourceAppUserModelId))
+                    {
+                        disallowMessage = $"Session source is disallowed by user setting. SourceAppUserModelId='{sessionSourceAppUserModelId}'; DisallowedAppUserModelIds='{_disallowedAppUserModelIdsDisplayText}'";
+                        return false;
+                    }
+                }
             }
 
-            disallowMessage = string.Empty;
             return true;
         }
 
@@ -672,10 +788,18 @@ namespace WindowsAudioSource
                 $"PlaybackPosition={sessionControls.IsPlaybackPositionEnabled}; ");
         }
 
-        // TODO: Add a debug assert that no locks are held when invoking an event
-        // Monitor.IsEntered should be sufficient since we only care that the event isn't being raised from within a locked context, which by definition only applies to the current thread
         private void LogEventInvocationIfFailed<T>(EventHandler<T> eventHandler, object sender, T args)
         {
+#if DEBUG
+            // Sanity check in debug builds to catch event invocations while locked
+            // Monitor.IsEntered should be sufficient since we only care that the event isn't being raised from within a locked context, which by definition only applies to the current thread
+            Debug.Assert(!Monitor.IsEntered(_currentSessionSourceMutex), "CurrentSessionSource lock held during event invocation");
+            Debug.Assert(!Monitor.IsEntered(_sessionSourceDisallowListMutex), "SessionSourceDisallowList lock held during event invocation");
+            Debug.Assert(!Monitor.IsEntered(_currentSessionTypeMutex), "CurrentSessionType lock held during event invocation");
+            Debug.Assert(!Monitor.IsEntered(_musicSessionsOnlyMutex), "MusicSessionsOnly lock held during event invocation");
+            Debug.Assert(!Monitor.IsEntered(_currentSessionCapabilitiesMutex), "CurrentSessionCapabilities lock held during event invocation");
+#endif
+
             if (eventHandler == null)
             {
                 _logger.Error($"Event handler is null. ArgsType={typeof(T)}");
