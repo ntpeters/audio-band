@@ -1010,7 +1010,6 @@ namespace WindowsAudioSource
 
         private void LogEventInvocationIfFailed<T>(EventHandler<T> eventHandler, object sender, T args)
         {
-#if DEBUG
             // Sanity check in debug builds to catch event invocations while locked
             // Monitor.IsEntered should be sufficient since we only care that the event isn't being raised from within a locked context, which by definition only applies to the current thread
             Debug.Assert(!Monitor.IsEntered(_currentSessionMutex), "CurrentSession lock held during event invocation");
@@ -1027,7 +1026,6 @@ namespace WindowsAudioSource
             Debug.Assert(!Monitor.IsEntered(_currentSessionTypeMutex), "CurrentSessionType lock held during event invocation");
             Debug.Assert(!Monitor.IsEntered(_musicSessionsOnlyMutex), "MusicSessionsOnly lock held during event invocation");
             Debug.Assert(!Monitor.IsEntered(_currentSessionCapabilitiesMutex), "CurrentSessionCapabilities lock held during event invocation");
-#endif
 
             if (eventHandler == null)
             {
