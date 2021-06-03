@@ -254,7 +254,6 @@ namespace WindowsAudioSource
         private readonly IApiInformationProvider _apiInformationProvider;
         private readonly SessionLogger _logger;
 
-        // TODO: Add locks around usages of session and session manager
         private IGlobalSystemMediaTransportControlsSessionManagerWrapper _sessionManager;
         private IGlobalSystemMediaTransportControlsSessionWrapper _currentSession;
 
@@ -274,6 +273,7 @@ namespace WindowsAudioSource
         private bool _musicSessionsOnly = false;
 
         // Locks
+        private readonly object _sessionManagerMutex = new object();
         private readonly object _currentSessionMutex = new object();
 
         private readonly object _isPlayingMutex = new object();
@@ -455,23 +455,29 @@ namespace WindowsAudioSource
         #region Session Management
         private void SetSessionManager(IGlobalSystemMediaTransportControlsSessionManagerWrapper newSessionManager)
         {
-            // Unregister event handlers from the old session manager
-            if (_sessionManager != null)
+            lock (_sessionManagerMutex)
             {
-                _sessionManager.CurrentSessionChanged -= OnCurrentSessionChanged;
-                _sessionManager.SessionsChanged -= OnSessionsChanged;
+                // Unregister event handlers from the old session manager
+                if (_sessionManager != null)
+                {
+                    _sessionManager.CurrentSessionChanged -= OnCurrentSessionChanged;
+                    _sessionManager.SessionsChanged -= OnSessionsChanged;
+                }
+
+                // Swap the session managers
+                _sessionManager = newSessionManager;
+
+                // Register event handlers on the new current session manager
+                if (_sessionManager != null)
+                {
+                    _sessionManager.CurrentSessionChanged += OnCurrentSessionChanged;
+                    _sessionManager.SessionsChanged += OnSessionsChanged;
+                }
             }
 
-            // Swap the session managers
-            _sessionManager = newSessionManager;
-
-            // Register event handlers on the new current session manager
             if (_sessionManager != null)
             {
-                _sessionManager.CurrentSessionChanged += OnCurrentSessionChanged;
-                _sessionManager.SessionsChanged += OnSessionsChanged;
-
-                // Look for the new best session from the new session manager, and update everything with it
+                // Get the current session from the new session manager, and update everything with it
                 SetCurrentSession(_sessionManager.GetCurrentSession());
             }
             else
@@ -927,15 +933,21 @@ namespace WindowsAudioSource
 
         private void OnCurrentSessionRestrictionSettingChanged(bool? newMusicSessionsOnlyValue, IList<string> newSessionSourceDisallowListValue, [CallerMemberName] string caller = null)
         {
+            IGlobalSystemMediaTransportControlsSessionManagerWrapper currentSessionManager;
+            lock (_sessionManagerMutex)
+            {
+                currentSessionManager = _sessionManager;
+            }
+
             if (newMusicSessionsOnlyValue == true || newSessionSourceDisallowListValue?.Count > 0)
             {
                 _logger.Info($"Settings restricting the current session enabled. Looking for better session. SettingChanged='{caller}'");
-                OnSessionsChanged(_sessionManager, null);
+                OnSessionsChanged(currentSessionManager, null);
             }
             else
             {
                 _logger.Info($"All settings restricting the current session disabled. Defaulting to the current session. SettingChanged='{caller}'");
-                OnCurrentSessionChanged(_sessionManager, null);
+                OnCurrentSessionChanged(currentSessionManager, null);
             }
         }
 
@@ -1002,6 +1014,7 @@ namespace WindowsAudioSource
             // Sanity check in debug builds to catch event invocations while locked
             // Monitor.IsEntered should be sufficient since we only care that the event isn't being raised from within a locked context, which by definition only applies to the current thread
             Debug.Assert(!Monitor.IsEntered(_currentSessionMutex), "CurrentSession lock held during event invocation");
+            Debug.Assert(!Monitor.IsEntered(_sessionManagerMutex), "SessionManager lock held during event invocation");
 
             Debug.Assert(!Monitor.IsEntered(_isPlayingMutex), "IsPlaying lock held during event invocation");
             Debug.Assert(!Monitor.IsEntered(_trackProgressMutex), "TrackProgress lock held during event invocation");
