@@ -86,13 +86,14 @@ namespace WindowsAudioSource
 
             set
             {
-                value = value.Trim();
                 if (value == _disallowedAppUserModelIdsDisplayText)
                 {
                     return;
                 }
 
                 IList<string> newDisallowedAppUserModelIdsValue;
+                string newDisallowedAppUserModelIdsDisplayText;
+                bool valueDidChange;
                 lock (_sessionSourceDisallowListMutex)
                 {
                     // Check if the value changed before we aquired the lock
@@ -104,10 +105,18 @@ namespace WindowsAudioSource
                     _disallowedAppUserModelIds = value.Split(new char[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries).ToList();
                     _disallowedAppUserModelIdsDisplayText = string.Join(",", _disallowedAppUserModelIds);
                     newDisallowedAppUserModelIdsValue = _disallowedAppUserModelIds;
+                    newDisallowedAppUserModelIdsDisplayText = _disallowedAppUserModelIdsDisplayText;
+                    valueDidChange = value != _disallowedAppUserModelIdsDisplayText;
                 }
 
-                _logger.Debug($"SessionSourceDisallowList Changed: {newDisallowedAppUserModelIdsValue}");
+                _logger.Debug($"SessionSourceDisallowList Changed: {newDisallowedAppUserModelIdsDisplayText}");
                 OnSessionSourceDisallowListSettingChanged(newDisallowedAppUserModelIdsValue);
+
+                // If the raw text value of the setting changed then update the settings UI
+                if (valueDidChange)
+                {
+                    LogEventInvocationIfFailed(SettingChanged, this, new SettingChangedEventArgs(SettingConstants.SessionSourceDisallowListName));
+                }
             }
         }
 
