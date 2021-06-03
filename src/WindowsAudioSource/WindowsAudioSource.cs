@@ -274,6 +274,8 @@ namespace WindowsAudioSource
         private bool _musicSessionsOnly = false;
 
         // Locks
+        private readonly object _currentSessionMutex = new object();
+
         private readonly object _isPlayingMutex = new object();
         private readonly object _trackProgressMutex = new object();
         private readonly object _shuffleMutex = new object();
@@ -297,6 +299,9 @@ namespace WindowsAudioSource
         {
             _windowsAudioSessionManagerFactory = windowsAudioSessionManagerFactory;
             _apiInformationProvider = apiInformationProvider;
+
+            // Intentionally not locking around current session here as it would cause too much contention due to the lock being aquired for every log call
+            // This is only for log attribution, so it's not an issue if it's not always 100% accurate
             _logger = new SessionLogger(() => Logger, () => _currentSession?.SourceAppUserModelId);
         }
         #endregion Constructors
@@ -320,38 +325,125 @@ namespace WindowsAudioSource
             return Task.CompletedTask;
         }
 
-        public Task NextTrackAsync() => LogPlayerCommandIfFailed(() => _currentSession?.TrySkipNextAsync());
+        public Task NextTrackAsync() =>
+            LogPlayerCommandIfFailed(() =>
+                {
+                    lock (_currentSessionMutex)
+                    {
+                        if (_currentSession == null)
+                        {
+                            return Task.FromResult(false);
+                        }
 
-        public Task PauseTrackAsync() => LogPlayerCommandIfFailed(() => _currentSession?.TryPauseAsync());
+                        return _currentSession.TrySkipNextAsync().AsTask();
+                    }
+                });
 
-        public Task PlayTrackAsync() => LogPlayerCommandIfFailed(() => _currentSession?.TryPlayAsync());
+        public Task PauseTrackAsync() =>
+            LogPlayerCommandIfFailed(() =>
+                {
+                    lock (_currentSessionMutex)
+                    {
+                        if (_currentSession == null)
+                        {
+                            return Task.FromResult(false);
+                        }
 
-        public Task PreviousTrackAsync() => LogPlayerCommandIfFailed(() => _currentSession?.TrySkipPreviousAsync());
+                        return _currentSession.TryPauseAsync().AsTask();
+                    }
+                });
+
+        public Task PlayTrackAsync() =>
+                LogPlayerCommandIfFailed(() =>
+                {
+                    lock (_currentSessionMutex)
+                    {
+                        if (_currentSession == null)
+                        {
+                            return Task.FromResult(false);
+                        }
+
+                        return _currentSession.TryPlayAsync().AsTask();
+                    }
+                });
+
+        public Task PreviousTrackAsync() =>
+            LogPlayerCommandIfFailed(() =>
+                {
+                    lock (_currentSessionMutex)
+                    {
+                        if (_currentSession == null)
+                        {
+                            return Task.FromResult(false);
+                        }
+
+                        return _currentSession.TrySkipPreviousAsync().AsTask();
+                    }
+                });
 
         public Task SetPlaybackProgressAsync(TimeSpan newProgress)
         {
             // Some apps (I'm looking at you Groove Music) don't support changing the playback postition, but
             // still fire a timeline properties changed event containing the initial timeline state when the
             // session is first initiated.
-            // TODO: Is this actually needed if track length is unset?
-            if (!_currentSession?.GetPlaybackInfo()?.Controls.IsPlaybackPositionEnabled == true)
+            bool isPlaybackPositionEnabled;
+            lock (_currentSessionMutex)
+            {
+                isPlaybackPositionEnabled = _currentSession?.GetPlaybackInfo()?.Controls.IsPlaybackPositionEnabled == true;
+            }
+
+            if (!isPlaybackPositionEnabled)
             {
                 _logger.Warn("Ignoring set playback progress command: Current session does not support setting playback position");
 
                 // Revert UI progress change from the user
-                TrackProgressChanged.Invoke(this, TimeSpan.Zero);
+                LogEventInvocationIfFailed(TrackProgressChanged, this, TimeSpan.Zero);
                 return Task.CompletedTask;
             }
 
-            // This needs to be in ticks, per discussion here:
-            // https://github.com/MicrosoftDocs/winrt-api/issues/1725
-            return LogPlayerCommandIfFailed(() => _currentSession?.TryChangePlaybackPositionAsync(newProgress.Ticks));
+            return LogPlayerCommandIfFailed(() =>
+                {
+                    lock (_currentSessionMutex)
+                    {
+                        if (_currentSession == null)
+                        {
+                            return Task.FromResult(false);
+                        }
+
+                        // This needs to be in ticks, per discussion here:
+                        // https://github.com/MicrosoftDocs/winrt-api/issues/1725
+                        return _currentSession.TryChangePlaybackPositionAsync(newProgress.Ticks).AsTask();
+                    }
+                });
         }
 
         public Task SetRepeatModeAsync(RepeatMode newRepeatMode) =>
-            LogPlayerCommandIfFailed(() => _currentSession?.TryChangeAutoRepeatModeAsync(newRepeatMode.ToMediaPlaybackAutoRepeatMode()));
+            LogPlayerCommandIfFailed(() =>
+                {
+                    lock (_currentSessionMutex)
+                    {
+                        if (_currentSession == null)
+                        {
+                            return Task.FromResult(false);
+                        }
 
-        public Task SetShuffleAsync(bool shuffleOn) => LogPlayerCommandIfFailed(() => _currentSession?.TryChangeShuffleActiveAsync(shuffleOn));
+                        return _currentSession.TryChangeAutoRepeatModeAsync(newRepeatMode.ToMediaPlaybackAutoRepeatMode()).AsTask();
+                    }
+                });
+
+        public Task SetShuffleAsync(bool shuffleOn) =>
+            LogPlayerCommandIfFailed(() =>
+                {
+                    lock (_currentSessionMutex)
+                    {
+                        if (_currentSession == null)
+                        {
+                            return Task.FromResult(false);
+                        }
+
+                        return _currentSession.TryChangeShuffleActiveAsync(shuffleOn).AsTask();
+                    }
+                });
 
         public Task SetVolumeAsync(float newVolume)
         {
@@ -390,12 +482,6 @@ namespace WindowsAudioSource
 
         private void SetCurrentSession(IGlobalSystemMediaTransportControlsSessionWrapper newCurrentSession)
         {
-            if (Equals(newCurrentSession, _currentSession))
-            {
-                _logger.Debug("Ignoring current session changed event: New session is already the current session");
-                return;
-            }
-
             // Check whether the new session has been disallowed by the user
             if (!IsSessionAllowed(newCurrentSession, out var disallowMessage))
             {
@@ -403,32 +489,44 @@ namespace WindowsAudioSource
                 return;
             }
 
-            // Unregister event handlers from the old session
-            if (_currentSession != null)
+            lock (_currentSessionMutex)
             {
-                _currentSession.PlaybackInfoChanged -= OnPlaybackInfoChanged;
-                _currentSession.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
-                _currentSession.MediaPropertiesChanged -= OnMediaPropertiesChanged;
+                if (Equals(newCurrentSession, _currentSession))
+                {
+                    _logger.Debug("Ignoring current session changed event: New session is already the current session");
+                    return;
+                }
+
+                // Unregister event handlers from the old session
+                if (_currentSession != null)
+                {
+                    _currentSession.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+                    _currentSession.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
+                    _currentSession.MediaPropertiesChanged -= OnMediaPropertiesChanged;
+                }
+
+                // Swap the sessions
+                _currentSession = newCurrentSession;
+
+                // Register event handlers on the new current session
+                if (_currentSession != null)
+                {
+                    _currentSession.PlaybackInfoChanged += OnPlaybackInfoChanged;
+                    _currentSession.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
+                    _currentSession.MediaPropertiesChanged += OnMediaPropertiesChanged;
+                }
             }
 
-            // Swap the sessions
-            _currentSession = newCurrentSession;
-            CurrentSessionSource = _currentSession?.SourceAppUserModelId ?? string.Empty;
-
             // Setup the new session
-            if (_currentSession != null)
+            CurrentSessionSource = newCurrentSession?.SourceAppUserModelId ?? string.Empty;
+            if (newCurrentSession != null)
             {
-                // Register event handlers on the new current session
-                _currentSession.PlaybackInfoChanged += OnPlaybackInfoChanged;
-                _currentSession.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
-                _currentSession.MediaPropertiesChanged += OnMediaPropertiesChanged;
-
                 // Update everything for the new session
-                OnPlaybackInfoChanged(_currentSession, null);
-                OnTimelinePropertiesChanged(_currentSession, null);
-                OnMediaPropertiesChanged(_currentSession, null);
+                OnPlaybackInfoChanged(newCurrentSession, null);
+                OnTimelinePropertiesChanged(newCurrentSession, null);
+                OnMediaPropertiesChanged(newCurrentSession, null);
 
-                LogSessionCapabilities(_currentSession);
+                LogSessionCapabilities(newCurrentSession);
             }
             else
             {
@@ -463,11 +561,15 @@ namespace WindowsAudioSource
                 return;
             }
 
-            // Only try selecting a better session if the user has settings that restrict the current session
-            if (IsSessionAllowed(_currentSession, out var disallowMessage))
+            string disallowMessage;
+            lock (_currentSessionMutex)
             {
-                _logger.Debug("Ignoring sessions changed event: Current session is still allowed based on user settings");
-                return;
+                // Only try selecting a better session if the user has settings that restrict the current session
+                if (IsSessionAllowed(_currentSession, out disallowMessage))
+                {
+                    _logger.Debug("Ignoring sessions changed event: Current session is still allowed based on user settings");
+                    return;
+                }
             }
 
             var currentSessions = sender.GetSessions();
@@ -481,22 +583,10 @@ namespace WindowsAudioSource
             {
                 _logger.Debug("No valid session found");
             }
-            else if (Equals(newSession, _currentSession))
-            {
-                _logger.Debug("No better session found, keeping current session");
-                return;
-            }
             else
             {
-                var oldSessionLogInfo = "[Previous session was null]";
-                if (_currentSession != null)
-                {
-                    var currentPlaybackInfo = _currentSession.GetPlaybackInfo();
-                    oldSessionLogInfo = $"OldPlaybackType='{currentPlaybackInfo.PlaybackType}'; OldPlaybackStatus='{currentPlaybackInfo.PlaybackStatus}'; OldAppId='{_currentSession.SourceAppUserModelId}'";
-                }
-
                 var newPlaybackInfo = newSession.GetPlaybackInfo();
-                _logger.Debug($"Better session found: NewPlaybackType='{newPlaybackInfo.PlaybackType}'; NewPlaybackStatus='{newPlaybackInfo.PlaybackStatus}'; NewAppId='{newSession.SourceAppUserModelId}'; {oldSessionLogInfo}");
+                _logger.Debug($"Better session candidate found: NewPlaybackType='{newPlaybackInfo.PlaybackType}'; NewPlaybackStatus='{newPlaybackInfo.PlaybackStatus}'; NewAppId='{newSession.SourceAppUserModelId}'");
             }
 
             SetCurrentSession(newSession);
@@ -512,10 +602,13 @@ namespace WindowsAudioSource
                 return;
             }
 
-            if (!Equals(sender, _currentSession))
+            lock (_currentSessionMutex)
             {
-                _logger.Debug("Ignoring playback info changed event: Sender is not the current session");
-                return;
+                if (!Equals(sender, _currentSession))
+                {
+                    _logger.Debug("Ignoring playback info changed event: Sender is not the current session");
+                    return;
+                }
             }
 
             try
@@ -567,16 +660,19 @@ namespace WindowsAudioSource
                 return;
             }
 
-            if (!Equals(sender, _currentSession))
+            lock (_currentSessionMutex)
             {
-                _logger.Debug("Ignoring track progress changed event: Sender is not the current session");
-                return;
+                if (!Equals(sender, _currentSession))
+                {
+                    _logger.Debug("Ignoring track progress changed event: Sender is not the current session");
+                    return;
+                }
             }
 
             // Some apps (I'm looking at you Groove Music) don't support changing the playback postition, but
             // still fire a timeline properties changed event containing the initial timeline state when the
             // session is first initiated.
-            if (!_currentSession.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
+            if (!sender.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
             {
                 _logger.Warn("Ignoring track progress changed event: Current session does not support setting playback position");
 
@@ -607,10 +703,13 @@ namespace WindowsAudioSource
                 return;
             }
 
-            if (!Equals(sender, _currentSession))
+            lock (_currentSessionMutex)
             {
-                _logger.Debug("Ignoring track info changed event: Sender is not the current session");
-                return;
+                if (!Equals(sender, _currentSession))
+                {
+                    _logger.Debug("Ignoring track info changed event: Sender is not the current session");
+                    return;
+                }
             }
 
             try
@@ -902,6 +1001,8 @@ namespace WindowsAudioSource
 #if DEBUG
             // Sanity check in debug builds to catch event invocations while locked
             // Monitor.IsEntered should be sufficient since we only care that the event isn't being raised from within a locked context, which by definition only applies to the current thread
+            Debug.Assert(!Monitor.IsEntered(_currentSessionMutex), "CurrentSession lock held during event invocation");
+
             Debug.Assert(!Monitor.IsEntered(_isPlayingMutex), "IsPlaying lock held during event invocation");
             Debug.Assert(!Monitor.IsEntered(_trackProgressMutex), "TrackProgress lock held during event invocation");
             Debug.Assert(!Monitor.IsEntered(_shuffleMutex), "Shuffle lock held during event invocation");
@@ -932,7 +1033,7 @@ namespace WindowsAudioSource
             }
         }
 
-        private async Task LogPlayerCommandIfFailed(Func<IAsyncOperation<bool>> command, [CallerMemberName] string caller = null)
+        private async Task LogPlayerCommandIfFailed(Func<Task<bool>> command, [CallerMemberName] string caller = null)
         {
             try
             {
