@@ -49,16 +49,11 @@ namespace WindowsAudioSource
                     return _currentSourceAppUserModlelId;
                 }
             }
+
             set
             {
-                if (value == _currentSourceAppUserModlelId)
-                {
-                    return;
-                }
-
                 lock (_currentSessionSourceMutex)
                 {
-                    // Check if the value changed before we aquired the lock
                     if (value == _currentSourceAppUserModlelId)
                     {
                         return;
@@ -86,17 +81,11 @@ namespace WindowsAudioSource
 
             set
             {
-                if (value == _disallowedAppUserModelIdsDisplayText)
-                {
-                    return;
-                }
-
                 IList<string> newDisallowedAppUserModelIdsValue;
                 string newDisallowedAppUserModelIdsDisplayText;
                 bool valueDidChange;
                 lock (_sessionSourceDisallowListMutex)
                 {
-                    // Check if the value changed before we aquired the lock
                     if (value == _disallowedAppUserModelIdsDisplayText)
                     {
                         return;
@@ -135,14 +124,8 @@ namespace WindowsAudioSource
 
             set
             {
-                if (value == _currentSourceType)
-                {
-                    return;
-                }
-
                 lock (_currentSessionTypeMutex)
                 {
-                    // Check if the value changed before we aquired the lock
                     if (value == _currentSourceType)
                     {
                         return;
@@ -170,15 +153,9 @@ namespace WindowsAudioSource
 
             set
             {
-                if (value == _musicSessionsOnly)
-                {
-                    return;
-                }
-
                 bool newMusicSessionsOnlyValue;
                 lock (_musicSessionsOnlyMutex)
                 {
-                    // Check if the value changed before we aquired the lock
                     if (value == _musicSessionsOnly)
                     {
                         return;
@@ -208,14 +185,8 @@ namespace WindowsAudioSource
 
             set
             {
-                if (value == _currentSourceCapabilities)
-                {
-                    return;
-                }
-
                 lock (_currentSessionCapabilitiesMutex)
                 {
-                    // Check if the value changed before we aquired the lock
                     if (value == _currentSourceCapabilities)
                     {
                         return;
@@ -838,14 +809,8 @@ namespace WindowsAudioSource
 
         private bool TrySetIsPlaying(bool newIsPlaying)
         {
-            if (newIsPlaying == _isPlaying)
-            {
-                return false;
-            }
-
             lock (_isPlayingMutex)
             {
-                // Check if the value changed before we aquired the lock
                 if (newIsPlaying == _isPlaying)
                 {
                     return false;
@@ -858,14 +823,8 @@ namespace WindowsAudioSource
 
         private bool TrySetShuffle(bool newShuffle)
         {
-            if (newShuffle == _shuffle)
-            {
-                return false;
-            }
-
             lock (_shuffleMutex)
             {
-                // Check if the value changed before we aquired the lock
                 if (newShuffle == _shuffle)
                 {
                     return false;
@@ -878,14 +837,8 @@ namespace WindowsAudioSource
 
         private bool TrySetRepeatMode(RepeatMode newRepeatMode)
         {
-            if (newRepeatMode == _repeatMode)
-            {
-                return false;
-            }
-
             lock (_repeatModeMutex)
             {
-                // Check if the value changed before we aquired the lock
                 if (newRepeatMode == _repeatMode)
                 {
                     return false;
@@ -898,14 +851,8 @@ namespace WindowsAudioSource
 
         private bool TrySetTrackProgress(TimeSpan newTrackProgress)
         {
-            if (newTrackProgress == _trackProgress)
-            {
-                return false;
-            }
-
             lock (_trackProgressMutex)
             {
-                // Check if the value changed before we aquired the lock
                 if (newTrackProgress == _trackProgress)
                 {
                     return false;
