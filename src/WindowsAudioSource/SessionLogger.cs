@@ -151,10 +151,10 @@ namespace WindowsAudioSource
         /// <returns></returns>
         private string ComposeMessageWithSessionAttribution(string message, string originalCaller = null)
         {
-            var stringBuilder = new StringBuilder($"CurrentSession({_getCurrentSessionName()})|");
+            var stringBuilder = new StringBuilder($"SessionSource({_getCurrentSessionName()})|");
             if (originalCaller != null)
             {
-                stringBuilder.Append($"{originalCaller}|");
+                stringBuilder.Append($"CallSource({originalCaller})|");
             }
             stringBuilder.Append(message);
             return stringBuilder.ToString();
