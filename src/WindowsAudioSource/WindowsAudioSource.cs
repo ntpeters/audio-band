@@ -158,10 +158,12 @@ namespace WindowsAudioSource
         private readonly IApiInformationProvider _apiInformationProvider;
         private readonly SessionLogger _logger;
 
+        // TODO: Add locks around usages of session and session manager
         private IGlobalSystemMediaTransportControlsSessionManagerWrapper _sessionManager;
         private IGlobalSystemMediaTransportControlsSessionWrapper _currentSession;
 
         // State
+        // TODO: Add locks around usages of variables tracking session state
         private bool _isPlaying;
         private TimeSpan _trackProgress;
         private bool _shuffle;
@@ -172,6 +174,7 @@ namespace WindowsAudioSource
         private Image _albumArt;
 
         // Settings
+        // TODO: Add locks around usages of settings
         private string _currentSourceAppUserModlelId = string.Empty;
         private string _currentSourceType = string.Empty;
         private IList<string> _disallowedAppUserModelIds = new List<string>();
@@ -307,23 +310,6 @@ namespace WindowsAudioSource
             // Swap the sessions
             _currentSession = newCurrentSession;
             CurrentSessionSource = _currentSession?.SourceAppUserModelId ?? string.Empty;
-            CurrentSessionType = newCurrentSession?.GetPlaybackInfo()?.PlaybackType?.ToString() ?? string.Empty;
-
-            if (_currentSession == null || !_currentSession.TryGetControls(out var playbackControls))
-            {
-                CurrentSessionCapabilities = string.Empty;
-            }
-            else
-            {
-                var isPlayPauseCapable = playbackControls.IsPlayEnabled || playbackControls.IsPauseEnabled || playbackControls.IsPlayPauseToggleEnabled;
-                var isNextPreviousCapable = playbackControls.IsNextEnabled || playbackControls.IsPreviousEnabled;
-                CurrentSessionCapabilities = $"Play/Pause={isPlayPauseCapable}; Next/Previous={isNextPreviousCapable}; Progress={playbackControls.IsPlaybackPositionEnabled}; Shuffle={playbackControls.IsShuffleEnabled}; Repeat={playbackControls.IsRepeatEnabled}";
-            }
-
-            // Reset everything before setting up the new session
-            ResetPlaybackInfo();
-            ResetTrackInfo();
-            ResetTrackProgress();
 
             // Setup the new session
             if (_currentSession != null)
@@ -449,6 +435,20 @@ namespace WindowsAudioSource
                 {
                     _repeatMode = currentRepeatMode;
                     LogEventInvocationIfFailed(RepeatModeChanged, this, _repeatMode);
+                }
+
+                CurrentSessionType = playbackInfo.PlaybackType?.ToString() ?? string.Empty;
+
+                var playbackControls = playbackInfo.Controls;
+                if (playbackControls == null)
+                {
+                    CurrentSessionCapabilities = string.Empty;
+                }
+                else
+                {
+                    var isPlayPauseCapable = playbackControls.IsPlayEnabled || playbackControls.IsPauseEnabled || playbackControls.IsPlayPauseToggleEnabled;
+                    var isNextPreviousCapable = playbackControls.IsNextEnabled || playbackControls.IsPreviousEnabled;
+                    CurrentSessionCapabilities = $"Play/Pause={isPlayPauseCapable}; Next/Previous={isNextPreviousCapable}; Progress={playbackControls.IsPlaybackPositionEnabled}; Shuffle={playbackControls.IsShuffleEnabled}; Repeat={playbackControls.IsRepeatEnabled}";
                 }
             }
             catch (Exception e)
@@ -680,6 +680,8 @@ namespace WindowsAudioSource
                 $"PlaybackPosition={sessionControls.IsPlaybackPositionEnabled}; ");
         }
 
+        // TODO: Add a debug assert that no locks are held when invoking an event
+        // Monitor.IsEntered should be sufficient since we only care that the event isn't being raised from within a locked context, which by definition only applies to the current thread
         private void LogEventInvocationIfFailed<T>(EventHandler<T> eventHandler, object sender, T args)
         {
             if (eventHandler == null)
