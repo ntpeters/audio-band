@@ -711,6 +711,9 @@ namespace WindowsAudioSource
 
             _repeatMode = RepeatMode.Off;
             LogEventInvocationIfFailed(RepeatModeChanged, this, _repeatMode);
+
+            CurrentSessionType = string.Empty;
+            CurrentSessionCapabilities = string.Empty;
         }
 
         private void OnMusicSessionsOnlySettingChanged(bool newMusicSessionsOnlyValue) => OnCurrentSessionRestrictionSettingChanged(newMusicSessionsOnlyValue, null);
