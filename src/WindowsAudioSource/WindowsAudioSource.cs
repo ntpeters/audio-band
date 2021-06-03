@@ -168,9 +168,6 @@ namespace WindowsAudioSource
         private TimeSpan _trackProgress;
         private bool _shuffle;
         private RepeatMode _repeatMode;
-        private string _currentTrackName;
-        private string _currentArtist;
-        private string _currentAlbum;
         private Image _albumArt;
 
         // Settings
@@ -516,13 +513,17 @@ namespace WindowsAudioSource
             {
                 var mediaProperties = await sender.TryGetMediaPropertiesAsync();
 
-                // Convert media properties to event args to update track info
-                var trackInfoChangedArgs = new TrackInfoChangedEventArgs
+                // Only set the track length for sessions that support setting the playback position.
+                // This prevents the user from being able to change the track position when it's not supported.
+                var trackLength = TimeSpan.Zero; ;
+                if (sender.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
                 {
-                    TrackName = mediaProperties.Title,
-                    Artist = mediaProperties.Artist,
-                    Album = mediaProperties.AlbumTitle
-                };
+                    trackLength = sender.GetTimelineProperties().EndTime.Duration();
+                }
+                else
+                {
+                    _logger.Warn("Ignoring track length: Current session does not support setting playback position");
+                }
 
                 // Try to convert the album art thumbnail
                 var (albumArt, albumArtError) = await mediaProperties.Thumbnail.ToImageAsync();
@@ -531,21 +532,15 @@ namespace WindowsAudioSource
                     _logger.Debug($"Failed to read album art: {albumArtError}");
                 }
 
-                // Only set the track length for sessions that support setting the playback position.
-                // This prevents the user from being able to change the track position when it's not supported.
-                if (sender.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
+                // Convert media properties to event args to update track info
+                var trackInfoChangedArgs = new TrackInfoChangedEventArgs
                 {
-                    trackInfoChangedArgs.TrackLength = sender.GetTimelineProperties().EndTime.Duration();
-                }
-                else
-                {
-                    _logger.Warn("Ignoring track length: Current session does not support setting playback position");
-                    trackInfoChangedArgs.TrackLength = TimeSpan.Zero;
-                }
-
-                _currentTrackName = trackInfoChangedArgs.TrackName;
-                _currentArtist = trackInfoChangedArgs.Artist;
-                _currentAlbum = trackInfoChangedArgs.Album;
+                    TrackName = mediaProperties.Title,
+                    Artist = mediaProperties.Artist,
+                    Album = mediaProperties.AlbumTitle,
+                    TrackLength = trackLength,
+                    AlbumArt = albumArt
+                };
 
                 using (var oldAlbumArt = _albumArt)
                 {
@@ -597,9 +592,6 @@ namespace WindowsAudioSource
 
         private void ResetTrackInfo()
         {
-            _currentTrackName = null;
-            _currentArtist = null;
-            _currentAlbum = null;
             var emptyTrackInfoChangedArgs = new TrackInfoChangedEventArgs();
             emptyTrackInfoChangedArgs.AlbumArt = null;  // Must be null to ensure we reset to the placeholder art
             LogEventInvocationIfFailed(TrackInfoChanged, this, emptyTrackInfoChangedArgs);
