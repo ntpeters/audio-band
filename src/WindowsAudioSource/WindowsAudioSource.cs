@@ -259,7 +259,6 @@ namespace WindowsAudioSource
         private IGlobalSystemMediaTransportControlsSessionWrapper _currentSession;
 
         // State
-        // TODO: Add locks around usages of variables tracking session state
         private bool _isPlaying;
         private TimeSpan _trackProgress;
         private bool _shuffle;
@@ -275,6 +274,12 @@ namespace WindowsAudioSource
         private bool _musicSessionsOnly = false;
 
         // Locks
+        private readonly object _isPlayingMutex = new object();
+        private readonly object _trackProgressMutex = new object();
+        private readonly object _shuffleMutex = new object();
+        private readonly object _repeatModeMutex = new object();
+        private readonly object _albumArtMutex = new object();
+
         private readonly object _currentSessionSourceMutex = new object();
         private readonly object _sessionSourceDisallowListMutex = new object();
         private readonly object _currentSessionTypeMutex = new object();
@@ -517,28 +522,26 @@ namespace WindowsAudioSource
             {
                 var playbackInfo = sender.GetPlaybackInfo();
                 var currentIsPlaying = playbackInfo.PlaybackStatus == GlobalSystemMediaTransportControlsSessionPlaybackStatus.Playing;
-                if (currentIsPlaying != _isPlaying)
+                if (TrySetIsPlaying(currentIsPlaying))
                 {
-                    _isPlaying = currentIsPlaying;
-                    LogEventInvocationIfFailed(IsPlayingChanged, this, _isPlaying);
+                    LogEventInvocationIfFailed(IsPlayingChanged, this, currentIsPlaying);
                 }
 
-                if (playbackInfo.IsShuffleActive != _shuffle)
+                var currentShuffle = playbackInfo.IsShuffleActive ?? false;
+                if (TrySetShuffle(currentShuffle))
                 {
-                    _shuffle = playbackInfo.IsShuffleActive ?? false;
-                    LogEventInvocationIfFailed(ShuffleChanged, this, _shuffle);
+                    LogEventInvocationIfFailed(ShuffleChanged, this, currentShuffle);
                 }
 
                 var currentRepeatMode = playbackInfo.AutoRepeatMode.ToRepeatMode();
-                if (currentRepeatMode != _repeatMode)
+                if (TrySetRepeatMode(currentRepeatMode))
                 {
-                    _repeatMode = currentRepeatMode;
-                    LogEventInvocationIfFailed(RepeatModeChanged, this, _repeatMode);
+                    LogEventInvocationIfFailed(RepeatModeChanged, this, currentRepeatMode);
                 }
 
                 CurrentSessionType = playbackInfo.PlaybackType?.ToString() ?? string.Empty;
 
-                var playbackControls = playbackInfo.Controls;
+                var playbackControls = playbackInfo?.Controls;
                 if (playbackControls == null)
                 {
                     CurrentSessionCapabilities = string.Empty;
@@ -584,11 +587,10 @@ namespace WindowsAudioSource
 
             try
             {
-                var timelineProperties = sender.GetTimelineProperties();
-                if (timelineProperties.Position != _trackProgress)
+                var currentTrackProgress = sender.GetTimelineProperties().Position;
+                if (TrySetTrackProgress(currentTrackProgress))
                 {
-                    _trackProgress = timelineProperties.Position;
-                    LogEventInvocationIfFailed(TrackProgressChanged, this, _trackProgress);
+                    LogEventInvocationIfFailed(TrackProgressChanged, this, currentTrackProgress);
                 }
             }
             catch (Exception e)
@@ -629,6 +631,7 @@ namespace WindowsAudioSource
 
                 // Try to convert the album art thumbnail
                 var (albumArt, albumArtError) = await mediaProperties.Thumbnail.ToImageAsync();
+                SetAlbumArt(albumArt);
                 if (albumArt == null)
                 {
                     _logger.Debug($"Failed to read album art: {albumArtError}");
@@ -643,11 +646,6 @@ namespace WindowsAudioSource
                     TrackLength = trackLength,
                     AlbumArt = albumArt
                 };
-
-                using (var oldAlbumArt = _albumArt)
-                {
-                    _albumArt = trackInfoChangedArgs.AlbumArt;
-                }
 
                 LogEventInvocationIfFailed(TrackInfoChanged, this, trackInfoChangedArgs);
             }
@@ -696,33 +694,132 @@ namespace WindowsAudioSource
         {
             var emptyTrackInfoChangedArgs = new TrackInfoChangedEventArgs();
             emptyTrackInfoChangedArgs.AlbumArt = null;  // Must be null to ensure we reset to the placeholder art
+            SetAlbumArt(null);
             LogEventInvocationIfFailed(TrackInfoChanged, this, emptyTrackInfoChangedArgs);
-
-            using (var oldAlbumArt = _albumArt)
-            {
-                _albumArt = null;
-            }
         }
 
         private void ResetTrackProgress()
         {
-            _trackProgress = TimeSpan.Zero;
-            LogEventInvocationIfFailed(TrackProgressChanged, this, _trackProgress);
+            var newTrackProgress = TimeSpan.Zero;
+            if (TrySetTrackProgress(newTrackProgress))
+            {
+                LogEventInvocationIfFailed(TrackProgressChanged, this, newTrackProgress);
+            }
         }
 
         private void ResetPlaybackInfo()
         {
-            _isPlaying = false;
-            LogEventInvocationIfFailed(IsPlayingChanged, this, _isPlaying);
+            var newIsPlaying = false;
+            if (TrySetIsPlaying(newIsPlaying))
+            {
+                LogEventInvocationIfFailed(IsPlayingChanged, this, newIsPlaying);
+            }
 
-            _shuffle = false;
-            LogEventInvocationIfFailed(ShuffleChanged, this, _shuffle);
+            var newShuffle = false;
+            if (TrySetShuffle(newShuffle))
+            {
+                LogEventInvocationIfFailed(ShuffleChanged, this, newShuffle);
+            }
 
-            _repeatMode = RepeatMode.Off;
-            LogEventInvocationIfFailed(RepeatModeChanged, this, _repeatMode);
+            var newRepeatMode = RepeatMode.Off;
+            if (TrySetRepeatMode(newRepeatMode))
+            {
+                LogEventInvocationIfFailed(RepeatModeChanged, this, newRepeatMode);
+            }
 
             CurrentSessionType = string.Empty;
             CurrentSessionCapabilities = string.Empty;
+        }
+
+        private bool TrySetIsPlaying(bool newIsPlaying)
+        {
+            if (newIsPlaying == _isPlaying)
+            {
+                return false;
+            }
+
+            lock (_isPlayingMutex)
+            {
+                // Check if the value changed before we aquired the lock
+                if (newIsPlaying == _isPlaying)
+                {
+                    return false;
+                }
+
+                _isPlaying = newIsPlaying;
+                return true;
+            }
+        }
+
+        private bool TrySetShuffle(bool newShuffle)
+        {
+            if (newShuffle == _shuffle)
+            {
+                return false;
+            }
+
+            lock (_shuffleMutex)
+            {
+                // Check if the value changed before we aquired the lock
+                if (newShuffle == _shuffle)
+                {
+                    return false;
+                }
+
+                _shuffle = newShuffle;
+                return true;
+            }
+        }
+
+        private bool TrySetRepeatMode(RepeatMode newRepeatMode)
+        {
+            if (newRepeatMode == _repeatMode)
+            {
+                return false;
+            }
+
+            lock (_repeatModeMutex)
+            {
+                // Check if the value changed before we aquired the lock
+                if (newRepeatMode == _repeatMode)
+                {
+                    return false;
+                }
+
+                _repeatMode = newRepeatMode;
+                return true;
+            }
+        }
+
+        private bool TrySetTrackProgress(TimeSpan newTrackProgress)
+        {
+            if (newTrackProgress == _trackProgress)
+            {
+                return false;
+            }
+
+            lock (_trackProgressMutex)
+            {
+                // Check if the value changed before we aquired the lock
+                if (newTrackProgress == _trackProgress)
+                {
+                    return false;
+                }
+
+                _trackProgress = newTrackProgress;
+                return true;
+            }
+        }
+
+        private void SetAlbumArt(Image newAlbumArt)
+        {
+            lock (_albumArtMutex)
+            {
+                using (var oldAlbumArt = _albumArt)
+                {
+                    _albumArt = newAlbumArt;
+                }
+            }
         }
 
         private void OnMusicSessionsOnlySettingChanged(bool newMusicSessionsOnlyValue) => OnCurrentSessionRestrictionSettingChanged(newMusicSessionsOnlyValue, null);
@@ -805,6 +902,12 @@ namespace WindowsAudioSource
 #if DEBUG
             // Sanity check in debug builds to catch event invocations while locked
             // Monitor.IsEntered should be sufficient since we only care that the event isn't being raised from within a locked context, which by definition only applies to the current thread
+            Debug.Assert(!Monitor.IsEntered(_isPlayingMutex), "IsPlaying lock held during event invocation");
+            Debug.Assert(!Monitor.IsEntered(_trackProgressMutex), "TrackProgress lock held during event invocation");
+            Debug.Assert(!Monitor.IsEntered(_shuffleMutex), "Shuffle lock held during event invocation");
+            Debug.Assert(!Monitor.IsEntered(_repeatModeMutex), "RepeatMode lock held during event invocation");
+            Debug.Assert(!Monitor.IsEntered(_albumArtMutex), "AlbumArt lock held during event invocation");
+
             Debug.Assert(!Monitor.IsEntered(_currentSessionSourceMutex), "CurrentSessionSource lock held during event invocation");
             Debug.Assert(!Monitor.IsEntered(_sessionSourceDisallowListMutex), "SessionSourceDisallowList lock held during event invocation");
             Debug.Assert(!Monitor.IsEntered(_currentSessionTypeMutex), "CurrentSessionType lock held during event invocation");
