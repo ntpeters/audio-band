@@ -326,8 +326,11 @@ namespace WindowsAudioSource.Wrappers
         /// <param name="args">Arguments sent with the event.</param>
         private void OnMediaPropertiesChanged(GlobalSystemMediaTransportControlsSession sender, MediaPropertiesChangedEventArgs args)
         {
+            // Update our held instance if needed
             SetSession(sender);
-            MediaPropertiesChangedInternal?.Invoke(this, args);
+
+            // Ensure we're always raising to the most recent set of subscribers
+            Interlocked.CompareExchange(ref MediaPropertiesChangedInternal, null, null)?.Invoke(this, args);
         }
 
         /// <summary>
@@ -340,8 +343,11 @@ namespace WindowsAudioSource.Wrappers
         /// <param name="args">Arguments sent with the event.</param>
         private void OnPlaybackInfoChanged(GlobalSystemMediaTransportControlsSession sender, PlaybackInfoChangedEventArgs args)
         {
+            // Update our held instance if needed
             SetSession(sender);
-            PlaybackInfoChangedInternal?.Invoke(this, args);
+
+            // Ensure we're always raising to the most recent set of subscribers
+            Interlocked.CompareExchange(ref PlaybackInfoChangedInternal, null, null)?.Invoke(this, args);
         }
 
         /// <summary>
@@ -354,8 +360,11 @@ namespace WindowsAudioSource.Wrappers
         /// <param name="args">Arguments sent with the event.</param>
         private void OnTimelinePropertiesChanged(GlobalSystemMediaTransportControlsSession sender, TimelinePropertiesChangedEventArgs args)
         {
+            // Update our held instance if needed
             SetSession(sender);
-            TimelinePropertiesChangedInternal?.Invoke(this, args);
+
+            // Ensure we're always raising to the most recent set of subscribers
+            Interlocked.CompareExchange(ref TimelinePropertiesChangedInternal, null, null)?.Invoke(this, args);
         }
         #endregion Event Handler Delegates
 

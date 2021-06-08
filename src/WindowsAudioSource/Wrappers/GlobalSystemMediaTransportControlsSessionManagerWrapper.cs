@@ -142,8 +142,11 @@ namespace WindowsAudioSource
         /// <param name="args">Arguments sent with the event.</param>
         private void OnCurrentSessionChanged(GlobalSystemMediaTransportControlsSessionManager sender, CurrentSessionChangedEventArgs args)
         {
+            // Update our held instance if needed
             SetSessionManager(sender);
-            CurrentSessionChangedInternal?.Invoke(this, args);
+
+            // Ensure we're always raising to the most recent set of subscribers
+            Interlocked.CompareExchange(ref CurrentSessionChangedInternal, null, null)?.Invoke(this, args);
         }
 
         /// <summary>
@@ -155,8 +158,11 @@ namespace WindowsAudioSource
         /// <param name="args">Arguments sent with the event.</param>
         private void OnSessionsChanged(GlobalSystemMediaTransportControlsSessionManager sender, SessionsChangedEventArgs args)
         {
+            // Update our held instance if needed
             SetSessionManager(sender);
-            SessionsChangedInternal?.Invoke(this, args);
+
+            // Ensure we're always raising to the most recent set of subscribers
+            Interlocked.CompareExchange(ref SessionsChangedInternal, null, null)?.Invoke(this, args);
         }
         #endregion Event Handler Delegates
 
