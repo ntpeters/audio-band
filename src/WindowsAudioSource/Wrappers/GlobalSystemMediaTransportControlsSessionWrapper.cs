@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Foundation;
@@ -18,21 +19,27 @@ namespace WindowsAudioSource.Wrappers
             {
                 // Lazily subscribe to the session event once someone subscribes to this event.
                 // This way we don't have to worry about doing anything special to cleanup our own event subscriptions here to prevent leaks.
-                if (!MediaPropertiesChangedInternal.HasSubscribers())
+                lock (_sessionMutex)
                 {
-                    _session.MediaPropertiesChanged += OnMediaPropertiesChanged;
+                    if (!MediaPropertiesChangedInternal.HasSubscribers())
+                    {
+                        _session.MediaPropertiesChanged += OnMediaPropertiesChanged;
+                    }
+                    MediaPropertiesChangedInternal += value;
                 }
-                MediaPropertiesChangedInternal += value;
             }
 
             remove
             {
                 // Lazily unsubscribe from the session event once the last subscriber unsubscribes from this event.
                 // This way we don't have to worry about doing anything special to cleanup our own event subscriptions here to prevent leaks.
-                MediaPropertiesChangedInternal -= value;
-                if (!MediaPropertiesChangedInternal.HasSubscribers())
+                lock (_sessionMutex)
                 {
-                    _session.MediaPropertiesChanged -= OnMediaPropertiesChanged;
+                    MediaPropertiesChangedInternal -= value;
+                    if (!MediaPropertiesChangedInternal.HasSubscribers())
+                    {
+                        _session.MediaPropertiesChanged -= OnMediaPropertiesChanged;
+                    }
                 }
             }
         }
@@ -43,21 +50,27 @@ namespace WindowsAudioSource.Wrappers
             {
                 // Lazily subscribe to the session event once someone subscribes to this event.
                 // This way we don't have to worry about doing anything special to cleanup our own event subscriptions here to prevent leaks.
-                if (!PlaybackInfoChangedInternal.HasSubscribers())
+                lock (_sessionMutex)
                 {
-                    _session.PlaybackInfoChanged += OnPlaybackInfoChanged;
+                    if (!PlaybackInfoChangedInternal.HasSubscribers())
+                    {
+                        _session.PlaybackInfoChanged += OnPlaybackInfoChanged;
+                    }
+                    PlaybackInfoChangedInternal += value;
                 }
-                PlaybackInfoChangedInternal += value;
             }
 
             remove
             {
                 // Lazily unsubscribe from the session event once the last subscriber unsubscribes from this event.
                 // This way we don't have to worry about doing anything special to cleanup our own event subscriptions here to prevent leaks.
-                PlaybackInfoChangedInternal -= value;
-                if (!PlaybackInfoChangedInternal.HasSubscribers())
+                lock (_sessionMutex)
                 {
-                    _session.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+                    PlaybackInfoChangedInternal -= value;
+                    if (!PlaybackInfoChangedInternal.HasSubscribers())
+                    {
+                        _session.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+                    }
                 }
             }
         }
@@ -68,29 +81,54 @@ namespace WindowsAudioSource.Wrappers
             {
                 // Lazily subscribe to the session event once someone subscribes to this event.
                 // This way we don't have to worry about doing anything special to cleanup our own event subscriptions here to prevent leaks.
-                if (!TimelinePropertiesChangedInternal.HasSubscribers())
+                lock (_sessionMutex)
                 {
-                    _session.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
+                    if (!TimelinePropertiesChangedInternal.HasSubscribers())
+                    {
+                        _session.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
+                    }
+                    TimelinePropertiesChangedInternal += value;
                 }
-                TimelinePropertiesChangedInternal += value;
             }
 
             remove
             {
                 // Lazily unsubscribe from the session event once the last subscriber unsubscribes from this event.
                 // This way we don't have to worry about doing anything special to cleanup our own event subscriptions here to prevent leaks.
-                TimelinePropertiesChangedInternal -= value;
-                if (!TimelinePropertiesChangedInternal.HasSubscribers())
+                lock (_sessionMutex)
                 {
-                    _session.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
+                    TimelinePropertiesChangedInternal -= value;
+                    if (!TimelinePropertiesChangedInternal.HasSubscribers())
+                    {
+                        _session.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
+                    }
                 }
             }
         }
         #endregion Public Events
 
         #region Public Properties
-        public string SourceAppUserModelId => _session.SourceAppUserModelId;
-        public GlobalSystemMediaTransportControlsSession WrappedInstance => _session;
+        public string SourceAppUserModelId
+        {
+            get
+            {
+                lock (_sessionMutex)
+                {
+                    return _session.SourceAppUserModelId;
+                }
+            }
+        }
+
+        public GlobalSystemMediaTransportControlsSession WrappedInstance
+        {
+            get
+            {
+                lock (_sessionMutex)
+                {
+                    return _session;
+                }
+            }
+        }
         #endregion Public Properties
 
         #region Internal Events
@@ -102,6 +140,7 @@ namespace WindowsAudioSource.Wrappers
 
         #region Instance Variables
         private GlobalSystemMediaTransportControlsSession _session;
+        private readonly object _sessionMutex = new object();
         #endregion Instance Variables
 
         #region Constructors
@@ -114,62 +153,166 @@ namespace WindowsAudioSource.Wrappers
         #region Wrapped Methods
         public IGlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper GetPlaybackInfo()
         {
-            var playbackInfo = _session.GetPlaybackInfo();
-            if (playbackInfo == null)
+            lock (_sessionMutex)
             {
-                return null;
-            }
+                var playbackInfo = _session.GetPlaybackInfo();
+                if (playbackInfo == null)
+                {
+                    return null;
+                }
 
-            return new GlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper(playbackInfo);
+                return new GlobalSystemMediaTransportControlsSessionPlaybackInfoWrapper(playbackInfo);
+            }
         }
 
         public IGlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper GetTimelineProperties()
         {
-            var timelineProperties = _session.GetTimelineProperties();
-            if (timelineProperties == null)
+            lock (_sessionMutex)
             {
-                return null;
-            }
+                var timelineProperties = _session.GetTimelineProperties();
+                if (timelineProperties == null)
+                {
+                    return null;
+                }
 
-            return new GlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper(timelineProperties);
+                return new GlobalSystemMediaTransportControlsSessionTimelinePropertiesWrapper(timelineProperties);
+            }
         }
 
-        public IAsyncOperation<bool> TryChangeAutoRepeatModeAsync(MediaPlaybackAutoRepeatMode requestedAutoRepeatMode) =>
-            _session.TryChangeAutoRepeatModeAsync(requestedAutoRepeatMode);
+        public IAsyncOperation<bool> TryChangeAutoRepeatModeAsync(MediaPlaybackAutoRepeatMode requestedAutoRepeatMode)
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryChangeAutoRepeatModeAsync(requestedAutoRepeatMode);
+            }
+        }
 
-        public IAsyncOperation<bool> TryChangeChannelDownAsync() => _session.TryChangeChannelDownAsync();
+        public IAsyncOperation<bool> TryChangeChannelDownAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryChangeChannelDownAsync();
+            }
+        }
 
-        public IAsyncOperation<bool> TryChangeChannelUpAsync() => _session.TryChangeChannelUpAsync();
+        public IAsyncOperation<bool> TryChangeChannelUpAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryChangeChannelUpAsync();
+            }
+        }
 
-        public IAsyncOperation<bool> TryChangePlaybackPositionAsync(long requestedPlaybackPosition) =>
-            _session.TryChangePlaybackPositionAsync(requestedPlaybackPosition);
+        public IAsyncOperation<bool> TryChangePlaybackPositionAsync(long requestedPlaybackPosition)
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryChangePlaybackPositionAsync(requestedPlaybackPosition);
+            }
+        }
 
-        public IAsyncOperation<bool> TryChangePlaybackRateAsync(double requestedPlaybackRate) =>
-            _session.TryChangePlaybackRateAsync(requestedPlaybackRate);
 
-        public IAsyncOperation<bool> TryChangeShuffleActiveAsync(bool requestedShuffleState) =>
-            _session.TryChangeShuffleActiveAsync(requestedShuffleState);
 
-        public IAsyncOperation<bool> TryFastForwardAsync() => _session.TryFastForwardAsync();
+        public IAsyncOperation<bool> TryChangePlaybackRateAsync(double requestedPlaybackRate)
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryChangePlaybackRateAsync(requestedPlaybackRate);
+            }
 
-        public IAsyncOperation<IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper> TryGetMediaPropertiesAsync() =>
-            TryGetMediaPropertiesInternalAsync().AsAsyncOperation();
 
-        public IAsyncOperation<bool> TryPauseAsync() => _session.TryPauseAsync();
+        }
 
-        public IAsyncOperation<bool> TryPlayAsync() => _session.TryPlayAsync();
+        public IAsyncOperation<bool> TryChangeShuffleActiveAsync(bool requestedShuffleState)
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryChangeShuffleActiveAsync(requestedShuffleState);
+            }
+        }
 
-        public IAsyncOperation<bool> TryRecordAsync() => _session.TryRecordAsync();
 
-        public IAsyncOperation<bool> TryRewindAsync() => _session.TryRewindAsync();
 
-        public IAsyncOperation<bool> TrySkipNextAsync() => _session.TrySkipNextAsync();
+        public IAsyncOperation<bool> TryFastForwardAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryFastForwardAsync();
+            }
+        }
 
-        public IAsyncOperation<bool> TrySkipPreviousAsync() => _session.TrySkipPreviousAsync();
+        public IAsyncOperation<IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper> TryGetMediaPropertiesAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return TryGetMediaPropertiesInternalAsync().AsAsyncOperation();
+            }
+        }
 
-        public IAsyncOperation<bool> TryStopAsync() => _session.TryStopAsync();
 
-        public IAsyncOperation<bool> TryTogglePlayPauseAsync() => _session.TryTogglePlayPauseAsync();
+        public IAsyncOperation<bool> TryPauseAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryPauseAsync();
+            }
+        }
+
+        public IAsyncOperation<bool> TryPlayAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryPlayAsync();
+            }
+        }
+
+        public IAsyncOperation<bool> TryRecordAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryRecordAsync();
+            }
+        }
+
+        public IAsyncOperation<bool> TryRewindAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryRewindAsync();
+            }
+        }
+
+        public IAsyncOperation<bool> TrySkipNextAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TrySkipNextAsync();
+            }
+        }
+
+        public IAsyncOperation<bool> TrySkipPreviousAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TrySkipPreviousAsync();
+            }
+        }
+
+        public IAsyncOperation<bool> TryStopAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryStopAsync();
+            }
+        }
+
+        public IAsyncOperation<bool> TryTogglePlayPauseAsync()
+        {
+            lock (_sessionMutex)
+            {
+                return _session.TryTogglePlayPauseAsync();
+            }
+        }
         #endregion Wrapped Methods
 
         #region Event Handler Delegates
@@ -245,40 +388,45 @@ namespace WindowsAudioSource.Wrappers
         /// <param name="newSession">Session instance to replace the wrapped instance with if it's not the same instance.</param>
         private void SetSession(GlobalSystemMediaTransportControlsSession newSession)
         {
-            // No need to update if the sender is still the same instance as the one we're holding
-            if (object.ReferenceEquals(_session, newSession))
-            {
-                return;
-            }
+            // We should never receive null here
+            Trace.Assert(newSession != null, "Wrapped session instance received null sender");
 
-            // It shouldn't be possible for us to receive an event from a session in a different app.
-            // However, we should fail outright if it does happen as that could cause unexpected behavior
-            // for the user since all handling for new app sessions is through the CurrentSessionChanged
-            // event handler on the session manager.
-            if (_session.SourceAppUserModelId != newSession.SourceAppUserModelId)
+            lock (_sessionMutex)
             {
-                throw new InvalidOperationException("Uh-oh spaghettio!");
-            }
+                // It shouldn't be possible for us to receive an event from a session in a different app.
+                // However, we should fail outright if it does happen as that could cause unexpected behavior
+                // for the user since all handling for new app sessions is through the CurrentSessionChanged
+                // event handler on the session manager.
+                Trace.Assert(_session.SourceAppUserModelId == newSession.SourceAppUserModelId, $"Wrapped session instance received sender from different app. CurrentAppUserModelId='{_session.SourceAppUserModelId}'; NewAppUserModelId={newSession.SourceAppUserModelId}");
 
-            var oldSession = Interlocked.Exchange(ref _session, newSession);
+                // No need to update if the sender is still the same instance as the one we're holding
+                if (object.ReferenceEquals(_session, newSession))
+                {
+                    return;
+                }
 
-            // Only swap our internal event subscriptions to the new session if we have any subscribers to our own events
-            if (MediaPropertiesChangedInternal.HasSubscribers())
-            {
-                _session.MediaPropertiesChanged += OnMediaPropertiesChanged;
-                oldSession.MediaPropertiesChanged -= OnMediaPropertiesChanged;
-            }
+                // Swap the sessions
+                var oldSession = _session;
+                _session = newSession;
 
-            if (PlaybackInfoChangedInternal.HasSubscribers())
-            {
-                _session.PlaybackInfoChanged += OnPlaybackInfoChanged;
-                oldSession.PlaybackInfoChanged -= OnPlaybackInfoChanged;
-            }
+                // Only swap our internal event subscriptions to the new session if we have any subscribers to our own events
+                if (MediaPropertiesChangedInternal.HasSubscribers())
+                {
+                    _session.MediaPropertiesChanged += OnMediaPropertiesChanged;
+                    oldSession.MediaPropertiesChanged -= OnMediaPropertiesChanged;
+                }
 
-            if (TimelinePropertiesChangedInternal.HasSubscribers())
-            {
-                _session.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
-                oldSession.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
+                if (PlaybackInfoChangedInternal.HasSubscribers())
+                {
+                    _session.PlaybackInfoChanged += OnPlaybackInfoChanged;
+                    oldSession.PlaybackInfoChanged -= OnPlaybackInfoChanged;
+                }
+
+                if (TimelinePropertiesChangedInternal.HasSubscribers())
+                {
+                    _session.TimelinePropertiesChanged += OnTimelinePropertiesChanged;
+                    oldSession.TimelinePropertiesChanged -= OnTimelinePropertiesChanged;
+                }
             }
         }
         #endregion Helpers
@@ -307,7 +455,10 @@ namespace WindowsAudioSource.Wrappers
                 return false;
             }
 
-            return WrappedInstance.Equals(other.WrappedInstance);
+            lock (_sessionMutex)
+            {
+                return _session.Equals(other.WrappedInstance);
+            }
         }
 
         /// <inheritdoc/>

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Windows.Foundation;
@@ -19,21 +20,27 @@ namespace WindowsAudioSource
             {
                 // Lazily subscribe to the session manager event once someone subscribes to this event.
                 // This way we don't have to worry about doing anything special to cleanup our own event subscriptions here to prevent leaks.
-                if (!CurrentSessionChangedInternal.HasSubscribers())
+                lock (_sessionManagerMutex)
                 {
-                    _sessionManager.CurrentSessionChanged += OnCurrentSessionChanged;
+                    if (!CurrentSessionChangedInternal.HasSubscribers())
+                    {
+                        _sessionManager.CurrentSessionChanged += OnCurrentSessionChanged;
+                    }
+                    CurrentSessionChangedInternal += value;
                 }
-                CurrentSessionChangedInternal += value;
             }
 
             remove
             {
                 // Lazily unsubscribe from the session manager event once the last subscriber unsubscribes from this event.
                 // This way we don't have to worry about doing anything special to cleanup our own event subscriptions here to prevent leaks.
-                CurrentSessionChangedInternal -= value;
-                if (!CurrentSessionChangedInternal.HasSubscribers())
+                lock (_sessionManagerMutex)
                 {
-                    _sessionManager.CurrentSessionChanged -= OnCurrentSessionChanged;
+                    CurrentSessionChangedInternal -= value;
+                    if (!CurrentSessionChangedInternal.HasSubscribers())
+                    {
+                        _sessionManager.CurrentSessionChanged -= OnCurrentSessionChanged;
+                    }
                 }
             }
         }
@@ -44,28 +51,43 @@ namespace WindowsAudioSource
             {
                 // Lazily subscribe to the session manager event once someone subscribes to this event.
                 // This way we don't have to worry about doing anything special to cleanup our own event subscriptions here to prevent leaks.
-                if (!SessionsChangedInternal.HasSubscribers())
+                lock (_sessionManagerMutex)
                 {
-                    _sessionManager.SessionsChanged += OnSessionsChanged;
+                    if (!SessionsChangedInternal.HasSubscribers())
+                    {
+                        _sessionManager.SessionsChanged += OnSessionsChanged;
+                    }
+                    SessionsChangedInternal += value;
                 }
-                SessionsChangedInternal += value;
             }
 
             remove
             {
                 // Lazily unsubscribe from the session manager event once the last subscriber unsubscribes from this event.
                 // This way we don't have to worry about doing anything special to cleanup our own event subscriptions here to prevent leaks.
-                SessionsChangedInternal -= value;
-                if (!SessionsChangedInternal.HasSubscribers())
+                lock (_sessionManagerMutex)
                 {
-                    _sessionManager.SessionsChanged -= OnSessionsChanged;
+                    SessionsChangedInternal -= value;
+                    if (!SessionsChangedInternal.HasSubscribers())
+                    {
+                        _sessionManager.SessionsChanged -= OnSessionsChanged;
+                    }
                 }
             }
         }
         #endregion Public Events
 
         #region Public Properties
-        public GlobalSystemMediaTransportControlsSessionManager WrappedInstance => _sessionManager;
+        public GlobalSystemMediaTransportControlsSessionManager WrappedInstance
+        {
+            get
+            {
+                lock (_sessionManagerMutex)
+                {
+                    return _sessionManager;
+                }
+            }
+        }
         #endregion Public Properties
 
         #region Internal Events
@@ -76,6 +98,7 @@ namespace WindowsAudioSource
 
         #region Instance Variables
         private GlobalSystemMediaTransportControlsSessionManager _sessionManager;
+        private readonly object _sessionManagerMutex = new object();
         #endregion Instance Variables
 
         #region Constructors
@@ -88,17 +111,25 @@ namespace WindowsAudioSource
         #region Wrapped Methods
         public IGlobalSystemMediaTransportControlsSessionWrapper GetCurrentSession()
         {
-            var currentSession = _sessionManager?.GetCurrentSession();
-            if (currentSession == null)
+            lock (_sessionManagerMutex)
             {
-                return null;
-            }
+                var currentSession = _sessionManager?.GetCurrentSession();
+                if (currentSession == null)
+                {
+                    return null;
+                }
 
-            return new GlobalSystemMediaTransportControlsSessionWrapper(currentSession);
+                return new GlobalSystemMediaTransportControlsSessionWrapper(currentSession);
+            }
         }
 
-        public IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> GetSessions() =>
-            _sessionManager.GetSessions()?.Select(session => new GlobalSystemMediaTransportControlsSessionWrapper(session)).ToList();
+        public IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> GetSessions()
+        {
+            lock (_sessionManagerMutex)
+            {
+                return _sessionManager.GetSessions()?.Select(session => new GlobalSystemMediaTransportControlsSessionWrapper(session)).ToList();
+            }
+        }
         #endregion Wrapped Methods
 
         #region Event Handler Delegates
@@ -137,25 +168,33 @@ namespace WindowsAudioSource
         /// <param name="newSessionManager">Session manager instance to replace the wrapped instance with if it's not the same instance.</param>
         private void SetSessionManager(GlobalSystemMediaTransportControlsSessionManager newSessionManager)
         {
-            // No need to update if the sender is still the same instance as the one we're holding
-            if (object.ReferenceEquals(_sessionManager, newSessionManager))
-            {
-                return;
-            }
+            // We should never receive null here
+            Trace.Assert(newSessionManager != null, "Wrapped session manager instance received null sender");
 
-            var oldSessionManager = Interlocked.Exchange(ref _sessionManager, newSessionManager);
-
-            // Only swap our internal event subscriptions to the new session manager if we have any subscribers to our own events
-            if (CurrentSessionChangedInternal.HasSubscribers())
+            lock (_sessionManagerMutex)
             {
-                _sessionManager.CurrentSessionChanged += OnCurrentSessionChanged;
-                oldSessionManager.CurrentSessionChanged -= OnCurrentSessionChanged;
-            }
+                // No need to update if the sender is still the same instance as the one we're holding
+                if (object.ReferenceEquals(_sessionManager, newSessionManager))
+                {
+                    return;
+                }
 
-            if (SessionsChangedInternal.HasSubscribers())
-            {
-                _sessionManager.SessionsChanged += OnSessionsChanged;
-                oldSessionManager.SessionsChanged -= OnSessionsChanged;
+                // Swap the session managers
+                var oldSessionManager = _sessionManager;
+                _sessionManager = newSessionManager;
+
+                // Only swap our internal event subscriptions to the new session manager if we have any subscribers to our own events
+                if (CurrentSessionChangedInternal.HasSubscribers())
+                {
+                    _sessionManager.CurrentSessionChanged += OnCurrentSessionChanged;
+                    oldSessionManager.CurrentSessionChanged -= OnCurrentSessionChanged;
+                }
+
+                if (SessionsChangedInternal.HasSubscribers())
+                {
+                    _sessionManager.SessionsChanged += OnSessionsChanged;
+                    oldSessionManager.SessionsChanged -= OnSessionsChanged;
+                }
             }
         }
         #endregion Helpers
@@ -178,7 +217,10 @@ namespace WindowsAudioSource
                 return false;
             }
 
-            return WrappedInstance.Equals(other.WrappedInstance);
+            lock (_sessionManagerMutex)
+            {
+                return _sessionManager.Equals(other.WrappedInstance);
+            }
         }
 
         /// <inheritdoc/>
