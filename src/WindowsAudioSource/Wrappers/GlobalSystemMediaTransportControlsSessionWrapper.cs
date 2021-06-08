@@ -245,10 +245,26 @@ namespace WindowsAudioSource.Wrappers
         {
             lock (_sessionMutex)
             {
-                return TryGetMediaPropertiesInternalAsync().AsAsyncOperation();
+                // Get a task representing the operation fetching the current media properties
+                var mediaPropertiesTask = _session.TryGetMediaPropertiesAsync().AsTask(); // Convert to a task so that we can use a continuation
+
+                // Continue the task to automatically wrap its result upon completion
+                return mediaPropertiesTask.ContinueWith<IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper>((completedMediaPropertiesTask) =>
+                {
+                    // Get the media properties from the completed task.
+                    // Don't bother checking if the task completed successfully, as accessing the result will cause the underlying
+                    // aggregate exception to be rethrown and ultimately propagate to the caller, which is what we want anyway.
+                    var mediaProperties = completedMediaPropertiesTask.Result;
+                    if (mediaProperties == null)
+                    {
+                        return null;
+                    }
+
+                    return new GlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper(mediaProperties);
+                })
+                .AsAsyncOperation(); // And finally convert it back into an AsyncOperation
             }
         }
-
 
         public IAsyncOperation<bool> TryPauseAsync()
         {
@@ -369,21 +385,6 @@ namespace WindowsAudioSource.Wrappers
         #endregion Event Handler Delegates
 
         #region Helpers
-        /// <summary>
-        /// Helper calling to <see cref="GlobalSystemMediaTransportControlsSession.TryGetMediaPropertiesAsync"/> on the wrapped instance that instead returns
-        /// a <see cref="Task{TResult}"/> so that we can use async/await, as async isn't supported on functions with a return type of <see cref="IAsyncOperation{TResult}"/>.
-        /// </summary>
-        /// <returns>The result of calling <see cref="GlobalSystemMediaTransportControlsSession.TryGetMediaPropertiesAsync"/> on the wrapped instance.</returns>
-        private async Task<IGlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper> TryGetMediaPropertiesInternalAsync()
-        {
-            var mediaProperties = await _session.TryGetMediaPropertiesAsync();
-            if (mediaProperties == null)
-            {
-                return null;
-            }
-            return new GlobalSystemMediaTransportControlsSessionMediaPropertiesWrapper(mediaProperties);
-        }
-
         /// <summary>
         /// Sets the wrapped session instance if the given session refers to a different instance.
         /// Internal event subscriptions are moved over to the new instance for the events that have subscribers.
