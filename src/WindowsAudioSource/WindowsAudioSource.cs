@@ -7,7 +7,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Windows.Foundation;
 using Windows.Media;
 using Windows.Media.Control;
 using WindowsAudioSource.Extensions;
@@ -20,6 +19,10 @@ namespace WindowsAudioSource
         #region Brainstorming TODOs
         // TODO: Add setting for "smooth" track progress, since updates don't seem to come in each second
         //       -> Maybe. Need to test how well this would work
+        // TODO: Add setting for "forcing" stricter synchronization between the current session and playback/timeline/media properties changes, as media properties (especially album art) sometimes get out of sync
+        //       -> Maybe. Depends on the complexity and if it's worth the potential tradeoffs.
+        //          Primarily an issue when *very* quickly switching between multiple audio streams from the same app.
+        //          Could either fire all playback/timeline/media properties changed events when any of them fire, or just use the current session rather than the sender?
         #endregion Brainstorming TODOs
 
         #region Constants
@@ -234,6 +237,10 @@ namespace WindowsAudioSource
         private bool _shuffle;
         private RepeatMode _repeatMode;
         private Image _albumArt;
+        private string _trackName;
+        private string _artist;
+        private string _album;
+        private TimeSpan _trackLength;
 
         // Settings
         private string _currentSourceAppUserModlelId = string.Empty;
@@ -243,7 +250,7 @@ namespace WindowsAudioSource
         private string _currentSourceCapabilities = string.Empty;
         private bool _musicSessionsOnly = false;
 
-        // Locks
+        // Synchronization
         private readonly object _sessionManagerMutex = new object();
         private readonly object _currentSessionMutex = new object();
 
@@ -252,6 +259,7 @@ namespace WindowsAudioSource
         private readonly object _shuffleMutex = new object();
         private readonly object _repeatModeMutex = new object();
         private readonly object _albumArtMutex = new object();
+        private readonly SemaphoreSlim _mediaPropertiesSemaphore = new SemaphoreSlim(1, 1);
 
         private readonly object _currentSessionSourceMutex = new object();
         private readonly object _sessionSourceDisallowListMutex = new object();
@@ -689,13 +697,16 @@ namespace WindowsAudioSource
                 }
             }
 
+
+            _mediaPropertiesSemaphore.Wait();
+            TrackInfoChangedEventArgs trackInfoChangedArgs = null;
             try
             {
                 var mediaProperties = await sender.TryGetMediaPropertiesAsync();
 
                 // Only set the track length for sessions that support setting the playback position.
                 // This prevents the user from being able to change the track position when it's not supported.
-                var trackLength = TimeSpan.Zero; ;
+                var trackLength = TimeSpan.Zero;
                 if (sender.GetPlaybackInfo().Controls.IsPlaybackPositionEnabled)
                 {
                     trackLength = sender.GetTimelineProperties().EndTime.Duration();
@@ -707,14 +718,13 @@ namespace WindowsAudioSource
 
                 // Try to convert the album art thumbnail
                 var (albumArt, albumArtError) = await mediaProperties.Thumbnail.ToImageAsync();
-                SetAlbumArt(albumArt);
                 if (albumArt == null)
                 {
                     _logger.Debug($"Failed to read album art: {albumArtError}");
                 }
 
                 // Convert media properties to event args to update track info
-                var trackInfoChangedArgs = new TrackInfoChangedEventArgs
+                trackInfoChangedArgs = new TrackInfoChangedEventArgs
                 {
                     TrackName = mediaProperties.Title,
                     Artist = mediaProperties.Artist,
@@ -723,11 +733,25 @@ namespace WindowsAudioSource
                     AlbumArt = albumArt
                 };
 
-                LogEventInvocationIfFailed(TrackInfoChanged, this, trackInfoChangedArgs);
+                _trackName = trackInfoChangedArgs.TrackName;
+                _artist = trackInfoChangedArgs.Artist;
+                _album = trackInfoChangedArgs.Album;
+                _trackLength = trackLength;
+
+                SetAlbumArt(albumArt);
             }
             catch (Exception e)
             {
                 _logger.Error(e);
+            }
+            finally
+            {
+                _mediaPropertiesSemaphore.Release();
+            }
+
+            if (trackInfoChangedArgs != null)
+            {
+                LogEventInvocationIfFailed(TrackInfoChanged, this, trackInfoChangedArgs);
             }
         }
         #endregion Session Event Handler Delegates
@@ -770,7 +794,20 @@ namespace WindowsAudioSource
         {
             var emptyTrackInfoChangedArgs = new TrackInfoChangedEventArgs();
             emptyTrackInfoChangedArgs.AlbumArt = null;  // Must be null to ensure we reset to the placeholder art
-            SetAlbumArt(null);
+            _mediaPropertiesSemaphore.Wait();
+            try
+            {
+                _trackName = emptyTrackInfoChangedArgs.TrackName;
+                _artist = emptyTrackInfoChangedArgs.Artist;
+                _album = emptyTrackInfoChangedArgs.Album;
+                _trackLength = emptyTrackInfoChangedArgs.TrackLength;
+                SetAlbumArt(null);
+            }
+            finally
+            {
+                _mediaPropertiesSemaphore.Release();
+            }
+            
             LogEventInvocationIfFailed(TrackInfoChanged, this, emptyTrackInfoChangedArgs);
         }
 
