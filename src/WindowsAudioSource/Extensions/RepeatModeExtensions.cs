@@ -5,6 +5,11 @@ namespace WindowsAudioSource.Extensions
 {
     public static class RepeatModeExtensions
     {
+        /// <summary>
+        /// Converts a <see cref="MediaPlaybackAutoRepeatMode"/> to the equivalent <see cref="RepeatMode"/>.
+        /// </summary>
+        /// <param name="repeatMode">Value to convert.</param>
+        /// <returns>The equivalent <see cref="RepeatMode"/> value.</returns>
         public static RepeatMode ToRepeatMode(this MediaPlaybackAutoRepeatMode? repeatMode)
         {
             switch (repeatMode)
@@ -17,6 +22,11 @@ namespace WindowsAudioSource.Extensions
             }
         }
 
+        /// <summary>
+        /// Converts a <see cref="RepeatMode"/> to the equivalent <see cref="MediaPlaybackAutoRepeatMode"/>.
+        /// </summary>
+        /// <param name="repeatMode">Value to convert.</param>
+        /// <returns>The equivalent <see cref="MediaPlaybackAutoRepeatMode"/> value.</returns>
         public static MediaPlaybackAutoRepeatMode ToMediaPlaybackAutoRepeatMode(this RepeatMode repeatMode)
         {
             switch (repeatMode)
