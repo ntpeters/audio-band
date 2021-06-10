@@ -46,7 +46,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Extensions\EnumerableExtensions.cs" />
-    <Compile Include="Extensions\GlobalSystemMediaTransportControlsSessionWrapperExtensions.cs" />
     <Compile Include="Extensions\RandomAccessStreamReferenceExtensions.cs" />
     <Compile Include="Extensions\RepeatModeExtensions.cs" />
     <Compile Include="Extensions\TypedEventHandlerExtensions.cs" />

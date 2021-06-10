@@ -45,8 +45,12 @@
     <Reference Include="System.Drawing" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="EnumerableExtensionsTests.cs" />
     <Compile Include="RandomAccessStreamReferenceExtensionsTests.cs" />
+    <Compile Include="RepeatModeExtensionsTests.cs" />
+    <Compile Include="SessionLoggerTests.cs" />
     <Compile Include="SettingsConstantsTests.cs" />
+    <Compile Include="TypedEventHandlerExtensionsTest.cs" />
     <Compile Include="WindowsAudioSourceTests.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
