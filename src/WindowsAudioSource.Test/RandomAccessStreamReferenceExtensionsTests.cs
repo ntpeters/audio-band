@@ -20,7 +20,7 @@ namespace WindowsAudioSource.Test
         public async Task ToImageAsync_WithValidImageStream_Success()
         {
             var imageFile = await StorageFile.GetFileFromPathAsync(_testArtPath1);
-            var (actualImage, actualErrorMessage) = await imageFile.ToImageAsync();
+            var (actualImage, actualErrorMessage) = await imageFile.TryToImageAsync();
 
             using (actualImage)
             using (var expectedImage = Image.FromFile(_testArtPath1))
@@ -55,7 +55,7 @@ namespace WindowsAudioSource.Test
                 var randomAccessImageStreamRef = RandomAccessStreamReference.CreateFromStream(randomAccessImageStream);
 
                 // Create the image from the stream
-                (actualImage, actualErrorMessage) = await randomAccessImageStreamRef.ToImageAsync();
+                (actualImage, actualErrorMessage) = await randomAccessImageStreamRef.TryToImageAsync();
 
                 // Write another image to the stream
                 using (var imageFileStream2 = File.Open(_testArtPath2, FileMode.Open, FileAccess.Read, FileShare.Read))
@@ -86,7 +86,7 @@ namespace WindowsAudioSource.Test
             mockImageStream.Setup(mock => mock.OpenReadAsync())
                 .Throws(expectedException);
 
-            var (actualImage, actualErrorMessage) = await mockImageStream.Object.ToImageAsync();
+            var (actualImage, actualErrorMessage) = await mockImageStream.Object.TryToImageAsync();
 
             Assert.Null(actualImage);
             Assert.Equal(expectedException.Message, actualErrorMessage);
@@ -97,7 +97,7 @@ namespace WindowsAudioSource.Test
         {
             var expectedErrorMessage = "Stream reference is null";
             IRandomAccessStreamReference imageStream = null;
-            var (actualImage, actualErrorMessage) = await imageStream.ToImageAsync();
+            var (actualImage, actualErrorMessage) = await imageStream.TryToImageAsync();
 
             Assert.Null(actualImage);
             Assert.Equal(expectedErrorMessage, actualErrorMessage);
@@ -108,7 +108,7 @@ namespace WindowsAudioSource.Test
         {
             var expectedErrorMessage = $"Stream content type is not supported: 'text/plain'. Only image content types are supported.";
             var imageFile = await StorageFile.GetFileFromPathAsync(_testTextFilePath);
-            var (actualImage, actualErrorMessage) = await imageFile.ToImageAsync();
+            var (actualImage, actualErrorMessage) = await imageFile.TryToImageAsync();
 
             Assert.Null(actualImage);
             Assert.Equal(expectedErrorMessage, actualErrorMessage);

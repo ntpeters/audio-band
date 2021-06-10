@@ -717,7 +717,7 @@ namespace WindowsAudioSource
                 }
 
                 // Try to convert the album art thumbnail
-                var (albumArt, albumArtError) = await mediaProperties.Thumbnail.ToImageAsync();
+                var (albumArt, albumArtError) = await mediaProperties.Thumbnail.TryToImageAsync();
                 if (albumArt == null)
                 {
                     _logger.Debug($"Failed to read album art: {albumArtError}");
