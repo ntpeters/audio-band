@@ -21,6 +21,16 @@ namespace WindowsAudioSource
         /// <param name="currentSessionNameGetter">Function to get the current session name.</param>
         public SessionLogger(Func<IAudioSourceLogger> audioSourceLoggerGetter, Func<string> currentSessionNameGetter)
         {
+            if (audioSourceLoggerGetter == null)
+            {
+                throw new ArgumentNullException(nameof(audioSourceLoggerGetter));
+            }
+
+            if (currentSessionNameGetter == null)
+            {
+                throw new ArgumentNullException(nameof(currentSessionNameGetter));
+            }
+
             _getBaseLogger = () =>
             {
                 try
@@ -44,7 +54,7 @@ namespace WindowsAudioSource
                 {
                     sessionName = null;
                 }
-                return sessionName ?? "null";
+                return string.IsNullOrWhiteSpace(sessionName) ? "null" : sessionName;
             };
         }
 
@@ -148,7 +158,7 @@ namespace WindowsAudioSource
         /// </remarks>
         /// <param name="message">Message to log.</param>
         /// <param name="originalCaller">The original calling method.</param>
-        /// <returns></returns>
+        /// <returns>The given log message formatted with prefixes attributing the session source and call source.</returns>
         private string ComposeMessageWithSessionAttribution(string message, string originalCaller = null)
         {
             var stringBuilder = new StringBuilder($"SessionSource({_getCurrentSessionName()})|");
