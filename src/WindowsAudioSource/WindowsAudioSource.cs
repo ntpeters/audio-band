@@ -276,8 +276,8 @@ namespace WindowsAudioSource
 
         public WindowsAudioSource(IGlobalSystemMediaTransportControlsSessionManagerWrapperFactory windowsAudioSessionManagerFactory, IApiInformationProvider apiInformationProvider)
         {
-            _windowsAudioSessionManagerFactory = windowsAudioSessionManagerFactory;
-            _apiInformationProvider = apiInformationProvider;
+            _windowsAudioSessionManagerFactory = windowsAudioSessionManagerFactory ?? throw new ArgumentNullException(nameof(windowsAudioSessionManagerFactory));
+            _apiInformationProvider = apiInformationProvider ?? throw new ArgumentNullException(nameof(apiInformationProvider));
 
             // Intentionally not locking around current session here as it would cause too much contention due to the lock being aquired for every log call
             // This is only for log attribution, so it's not an issue if it's not always 100% accurate
