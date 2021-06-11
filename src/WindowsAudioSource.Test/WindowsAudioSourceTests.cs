@@ -315,6 +315,8 @@ namespace WindowsAudioSource.Test
         //          - Not Changed => nothing
         //      - CurrentSessionType setting updated
         //      - CurrentSessionCapabilities setting updated
+        //      - IsPlaybackPositionEnabled capability changed
+        //          - Call OnTimelinePropertiesChanged and OnMediaPropertiesChanged
         // - Timeline properties changed:
         //      - Changed
         //          - IsPlaybackPositionEnabled => timeline position used
@@ -324,6 +326,10 @@ namespace WindowsAudioSource.Test
         //          - IsPlaybackPositionEnabled => timeline end time used
         //          - !IsPlaybackPositionEnabled => set to zero
         //      - Not Changed => nothing
+        // - Media properties changed:
+        //      - Raise TrackInfoChanged
+        //          - IsPlaybackPositionEnabled => track length == timeline position
+        //          - !IsPlaybackPositionEnabled => track length == zero
         #region Session State
         [Fact]
         public void WindowsAudioSource_OnPlaybackInfoChanged()

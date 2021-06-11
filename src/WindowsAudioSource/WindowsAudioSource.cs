@@ -237,6 +237,7 @@ namespace WindowsAudioSource
         private bool _shuffle;
         private RepeatMode _repeatMode;
         private Image _albumArt;
+        private bool _isPlaybackPositionEnabled;
 
         // Settings
         private string _currentSourceAppUserModlelId = string.Empty;
@@ -254,6 +255,7 @@ namespace WindowsAudioSource
         private readonly object _trackProgressMutex = new object();
         private readonly object _shuffleMutex = new object();
         private readonly object _repeatModeMutex = new object();
+        private readonly object _isPlaybackProgressEnabledMutex = new object();
         private readonly SemaphoreSlim _mediaPropertiesSemaphore = new SemaphoreSlim(1, 1);
 
         private readonly object _currentSessionSourceMutex = new object();
@@ -626,6 +628,13 @@ namespace WindowsAudioSource
                     var isPlayPauseCapable = playbackControls.IsPlayEnabled || playbackControls.IsPauseEnabled || playbackControls.IsPlayPauseToggleEnabled;
                     var isNextPreviousCapable = playbackControls.IsNextEnabled || playbackControls.IsPreviousEnabled;
                     CurrentSessionCapabilities = $"Play/Pause={isPlayPauseCapable}; Next/Previous={isNextPreviousCapable}; Progress={playbackControls.IsPlaybackPositionEnabled}; Shuffle={playbackControls.IsShuffleEnabled}; Repeat={playbackControls.IsRepeatEnabled}";
+
+                    // If the playback position capability has changed, timeline and media properties are updated to include the track length and position
+                    if (TrySetIsPlaybackPositionEnabled(playbackControls.IsPlaybackPositionEnabled))
+                    {
+                        OnTimelinePropertiesChanged(sender, null);
+                        OnMediaPropertiesChanged(sender, null);
+                    }
                 }
             }
             catch (Exception e)
@@ -809,6 +818,18 @@ namespace WindowsAudioSource
                 LogEventInvocationIfFailed(RepeatModeChanged, this, newRepeatMode);
             }
 
+            var newIsPlaybackPositionEnabled = false;
+            if (TrySetIsPlaybackPositionEnabled(newIsPlaybackPositionEnabled))
+            {
+                IGlobalSystemMediaTransportControlsSessionWrapper session;
+                lock (_currentSessionMutex)
+                {
+                    session = _currentSession;
+                }
+                OnTimelinePropertiesChanged(session, null);
+                OnMediaPropertiesChanged(session, null);
+            }
+
             CurrentSessionType = string.Empty;
             CurrentSessionCapabilities = string.Empty;
         }
@@ -851,6 +872,20 @@ namespace WindowsAudioSource
                 }
 
                 _repeatMode = newRepeatMode;
+                return true;
+            }
+        }
+
+        private bool TrySetIsPlaybackPositionEnabled(bool newIsPlaybackPositionEnabled)
+        {
+            lock (_isPlaybackProgressEnabledMutex)
+            {
+                if (newIsPlaybackPositionEnabled == _isPlaybackPositionEnabled)
+                {
+                    return false;
+                }
+
+                _isPlaybackPositionEnabled = newIsPlaybackPositionEnabled;
                 return true;
             }
         }
