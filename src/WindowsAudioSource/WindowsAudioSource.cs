@@ -237,10 +237,6 @@ namespace WindowsAudioSource
         private bool _shuffle;
         private RepeatMode _repeatMode;
         private Image _albumArt;
-        private string _trackName;
-        private string _artist;
-        private string _album;
-        private TimeSpan _trackLength;
 
         // Settings
         private string _currentSourceAppUserModlelId = string.Empty;
@@ -258,7 +254,6 @@ namespace WindowsAudioSource
         private readonly object _trackProgressMutex = new object();
         private readonly object _shuffleMutex = new object();
         private readonly object _repeatModeMutex = new object();
-        private readonly object _albumArtMutex = new object();
         private readonly SemaphoreSlim _mediaPropertiesSemaphore = new SemaphoreSlim(1, 1);
 
         private readonly object _currentSessionSourceMutex = new object();
@@ -285,7 +280,7 @@ namespace WindowsAudioSource
         }
         #endregion Constructors
 
-        #region Public Methods
+        #region Activation
         public async Task ActivateAsync()
         {
             if (!IsWindowsVersionSupported)
@@ -303,7 +298,9 @@ namespace WindowsAudioSource
             SetSessionManager(null);
             return Task.CompletedTask;
         }
+        #endregion Activation
 
+        #region Controls
         public Task NextTrackAsync() =>
             LogPlayerCommandIfFailed(() =>
                 {
@@ -429,7 +426,7 @@ namespace WindowsAudioSource
             _logger.Error("Volume Not Supported!");
             return Task.CompletedTask;
         }
-        #endregion Public Methods
+        #endregion Controls
 
         #region Session Management
         private void SetSessionManager(IGlobalSystemMediaTransportControlsSessionManagerWrapper newSessionManager)
@@ -697,7 +694,6 @@ namespace WindowsAudioSource
                 }
             }
 
-
             _mediaPropertiesSemaphore.Wait();
             TrackInfoChangedEventArgs trackInfoChangedArgs = null;
             try
@@ -733,12 +729,10 @@ namespace WindowsAudioSource
                     AlbumArt = albumArt
                 };
 
-                _trackName = trackInfoChangedArgs.TrackName;
-                _artist = trackInfoChangedArgs.Artist;
-                _album = trackInfoChangedArgs.Album;
-                _trackLength = trackLength;
-
-                SetAlbumArt(albumArt);
+                using (var oldAlbumArt = _albumArt)
+                {
+                    _albumArt = albumArt;
+                }
             }
             catch (Exception e)
             {
@@ -749,6 +743,13 @@ namespace WindowsAudioSource
                 _mediaPropertiesSemaphore.Release();
             }
 
+            // Always raise the TrackInfoChanged event if we were able to compose TrackInfoChangedArgs.
+            // Unlike other state changes we intentionally do not hold and compare the values for track info
+            // to determine whether the event should be raised only when those values change.
+            // This is because sometimes the change to album art is received as a separate event invocation
+            // after the other track info has already been updated, and comparing the album art for each
+            // invocation would be unnecessarily expensive.
+            // Instead we simply always update the track info regardless of what, if any, changes there were.
             if (trackInfoChangedArgs != null)
             {
                 LogEventInvocationIfFailed(TrackInfoChanged, this, trackInfoChangedArgs);
@@ -756,58 +757,26 @@ namespace WindowsAudioSource
         }
         #endregion Session Event Handler Delegates
 
-        #region Helpers
-        private IGlobalSystemMediaTransportControlsSessionWrapper GetNextBestSession(IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> sessions)
-        {
-            try
-            {
-                // We only care about sessions for sources that have not been disallowed by the user
-                var candidateSessions = sessions.Where(session => IsSessionAllowed(session, out _));
-
-                if (candidateSessions.Count() == 1)
-                {
-                    return candidateSessions.First();
-                }
-                else
-                {
-                    // When there is more than one session, select the one in the "most active" playback state
-                    var candidateSessionsByPlaybackStatus = candidateSessions.GroupBy(session => session.GetPlaybackInfo().PlaybackStatus);
-                    foreach (var playbackStatus in SupportedPlaybackStatusesInPriorityOrder)
-                    {
-                        var candidateSession = candidateSessionsByPlaybackStatus.FirstInGroupOrDefault(playbackStatus);
-                        if (candidateSession != null)
-                        {
-                            return candidateSession;
-                        }
-                    }
-                }
-            }
-            catch (Exception e)
-            {
-                _logger.Error(e);
-            }
-
-            return null;
-        }
+        #region State Management
 
         private void ResetTrackInfo()
         {
             var emptyTrackInfoChangedArgs = new TrackInfoChangedEventArgs();
             emptyTrackInfoChangedArgs.AlbumArt = null;  // Must be null to ensure we reset to the placeholder art
+
             _mediaPropertiesSemaphore.Wait();
             try
             {
-                _trackName = emptyTrackInfoChangedArgs.TrackName;
-                _artist = emptyTrackInfoChangedArgs.Artist;
-                _album = emptyTrackInfoChangedArgs.Album;
-                _trackLength = emptyTrackInfoChangedArgs.TrackLength;
-                SetAlbumArt(null);
+                using (var oldAlbumArt = _albumArt)
+                {
+                    _albumArt = null;
+                }
             }
             finally
             {
                 _mediaPropertiesSemaphore.Release();
             }
-            
+
             LogEventInvocationIfFailed(TrackInfoChanged, this, emptyTrackInfoChangedArgs);
         }
 
@@ -899,17 +868,9 @@ namespace WindowsAudioSource
                 return true;
             }
         }
+        #endregion State Management
 
-        private void SetAlbumArt(Image newAlbumArt)
-        {
-            lock (_albumArtMutex)
-            {
-                using (var oldAlbumArt = _albumArt)
-                {
-                    _albumArt = newAlbumArt;
-                }
-            }
-        }
+        #region Setting Event Handler Delegates
 
         private void OnMusicSessionsOnlySettingChanged(bool newMusicSessionsOnlyValue) => OnCurrentSessionRestrictionSettingChanged(newMusicSessionsOnlyValue, null);
 
@@ -933,6 +894,41 @@ namespace WindowsAudioSource
                 _logger.Info($"All settings restricting the current session disabled. Defaulting to the current session. SettingChanged='{caller}'");
                 OnCurrentSessionChanged(currentSessionManager, null);
             }
+        }
+        #endregion Setting Event Handler Delegates
+
+        #region Helpers
+        private IGlobalSystemMediaTransportControlsSessionWrapper GetNextBestSession(IReadOnlyList<IGlobalSystemMediaTransportControlsSessionWrapper> sessions)
+        {
+            try
+            {
+                // We only care about sessions for sources that have not been disallowed by the user
+                var candidateSessions = sessions.Where(session => IsSessionAllowed(session, out _));
+
+                if (candidateSessions.Count() == 1)
+                {
+                    return candidateSessions.First();
+                }
+                else
+                {
+                    // When there is more than one session, select the one in the "most active" playback state
+                    var candidateSessionsByPlaybackStatus = candidateSessions.GroupBy(session => session.GetPlaybackInfo().PlaybackStatus);
+                    foreach (var playbackStatus in SupportedPlaybackStatusesInPriorityOrder)
+                    {
+                        var candidateSession = candidateSessionsByPlaybackStatus.FirstInGroupOrDefault(playbackStatus);
+                        if (candidateSession != null)
+                        {
+                            return candidateSession;
+                        }
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                _logger.Error(e);
+            }
+
+            return null;
         }
 
         private bool IsSessionAllowed(IGlobalSystemMediaTransportControlsSessionWrapper session, out string disallowMessage)
@@ -1003,7 +999,6 @@ namespace WindowsAudioSource
             Debug.Assert(!Monitor.IsEntered(_trackProgressMutex), "TrackProgress lock held during event invocation");
             Debug.Assert(!Monitor.IsEntered(_shuffleMutex), "Shuffle lock held during event invocation");
             Debug.Assert(!Monitor.IsEntered(_repeatModeMutex), "RepeatMode lock held during event invocation");
-            Debug.Assert(!Monitor.IsEntered(_albumArtMutex), "AlbumArt lock held during event invocation");
 
             Debug.Assert(!Monitor.IsEntered(_currentSessionSourceMutex), "CurrentSessionSource lock held during event invocation");
             Debug.Assert(!Monitor.IsEntered(_sessionSourceDisallowListMutex), "SessionSourceDisallowList lock held during event invocation");
